@@ -1,0 +1,18 @@
+include MANIFEST.in
+include requirements.txt
+include *.json
+include *.md
+include *.py
+include *.txt
+recursive-include propshikari *.css
+recursive-include propshikari *.csv
+recursive-include propshikari *.html
+recursive-include propshikari *.ico
+recursive-include propshikari *.js
+recursive-include propshikari *.json
+recursive-include propshikari *.md
+recursive-include propshikari *.png
+recursive-include propshikari *.py
+recursive-include propshikari *.svg
+recursive-include propshikari *.txt
+recursive-exclude propshikari *.pyc
