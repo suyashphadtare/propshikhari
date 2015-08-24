@@ -1,4 +1,9 @@
 from __future__ import unicode_literals
+import api_handler
+import frappe
 
-def postproperty():
-	return {"operation":"search","message":"Property Found"}
+@frappe.whitelist(allow_guest=True)
+def postproperty(data):
+	#raise api_handler.AuthenticationError('Unauthorized User')
+	print data
+	return {"operation":"search","message":"Property Found","data":{"name":"hshsh"}}
