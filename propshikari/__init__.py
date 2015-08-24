@@ -9,7 +9,8 @@ def login(data):
 		loginmgr = frappe.auth.LoginManager()
 		frappe.clear_cache(user = user_data["user"])
 		loginmgr.authenticate(user_data["user"],user_data["password"])
-		loginmgr.post_login()	
+		loginmgr.post_login()
+		frappe.response["sid"] = frappe.session.sid	
 	
 	except frappe.AuthenticationError,e:
 		http_status_code = getattr(e, "http_status_code", 500)

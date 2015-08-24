@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 import api_handler
 import frappe
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def postproperty(data):
 	#raise api_handler.AuthenticationError('Unauthorized User')
 	print data
