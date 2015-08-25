@@ -1,0 +1,202 @@
+{
+  "property_title": {
+    "is_mandatory": true,
+    "field_type": "string"
+  },
+  "property_type": {
+    "is_mandatory": true,
+    "field_type": "string"
+  },
+  "property_subtype": {
+    "is_mandatory": true,
+    "field_type": "string"
+  },
+  "price": {
+    "is_mandatory": true,
+    "field_type": "number"
+  },
+  "location": {
+    "is_mandatory": true,
+    "field_type": "string"
+  },
+  "address": {
+    "is_mandatory": true,
+    "field_type": "string"
+  },
+  "carpet_area": {
+    "is_mandatory": true,
+    "field_type": "number"
+  },
+  "property_photos": {
+    "is_mandatory": false,
+    "field_type": "list"
+  },
+  "amenities": {
+    "is_mandatory": false,
+    "field_type": "nested"
+  },
+  "description": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "price_per_sq_ft": {
+    "is_mandatory": false,
+    "field_type": "number"
+  },
+  "tag": {
+    "is_mandatory": false,
+    "field_type": "list"
+  },
+  "no_of_floors": {
+    "is_mandatory": false,
+    "field_type": "integer"
+  },
+  "floor_no": {
+    "is_mandatory": false,
+    "field_type": "integer"
+  },
+  "posting_date": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "no_of_bathroom": {
+    "is_mandatory": false,
+    "field_type": "integer"
+  },
+  "property_subtype_option": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "property_age": {
+    "is_mandatory": false,
+    "field_type": "number"
+  },
+  "furnishing_type": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "possession": {
+    "is_mandatory": false,
+    "field_type": "integer"
+  },
+  "state": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "city": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "pincode": {
+    "is_mandatory": false,
+    "field_type": "number"
+  },
+  "property_ownership": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "flat_facilities": {
+    "is_mandatory": false,
+    "field_type": "nested"
+  },
+  "transaction_type": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "security_deposit": {
+    "is_mandatory": false,
+    "field_type": "number"
+  },
+  "maintainance_charges": {
+    "is_mandatory": false,
+    "field_type": "number"
+  },
+  "lease_type": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "listed_by": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "agent_name": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "agent_no": {
+    "is_mandatory": false,
+    "field_type": "number"
+  },
+  "contact_no": {
+    "is_mandatory": false,
+    "field_type": "number"
+  },
+  "contact_person": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "geo_location": {
+    "is_mandatory": false,
+    "field_type": "object"
+  },
+  "percent_completion": {
+    "is_mandatory": false,
+    "field_type": "number"
+  },
+  "society_name": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "project_id": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "project_title": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "project_type": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "project_by": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "project_sub_type": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "status": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "operation": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "distance_from_imp_locations": {
+    "is_mandatory": false,
+    "field_type": "object"
+  },
+  "posted_by": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "modified_by": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "modified_date": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "modified_datetime": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "posted_datetime": {
+    "is_mandatory": false,
+    "field_type": "string"
+  }
+}
