@@ -26,5 +26,5 @@ class ElasticSearchController():
 	   		with no of records to be returned.
 		"""		
 		
-		response = self.es.search(index=["propshikari"], doc_type=type_list, body=search_body, from_=page_no * 20, size=no_of_records, version=False  )
-		return {"data":[response["_source"] for response in response["hits"]["hits"]]}		
+		response = self.es.search(index=["propshikari"], doc_type=type_list, body=search_body, from_=(page_no - 1) * 20, size=no_of_records)
+		return [response["_source"] for response in response["hits"]["hits"]]		
