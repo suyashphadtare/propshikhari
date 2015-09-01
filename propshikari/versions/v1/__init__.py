@@ -53,7 +53,7 @@ def update_user_profile(data):
 
 
 @frappe.whitelist()
-def log_out(data):
+def logout(data):
 	return api.log_out_from_propshikari(data)	
 
 

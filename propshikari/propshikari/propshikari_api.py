@@ -171,8 +171,8 @@ def log_out_from_propshikari(data):
 	request_data = json.loads(data)
 	user_email = putil.validate_for_user_id_exists(request_data.get("user_id"))
 	try:
-		loginmgr = frappe.auth.LoginManager()
-		loginmgr.logout()
+		frappe.local.login_manager.logout()
+		frappe.db.commit()
 		return {"operation":"Log Out", "message":"Successfully Logged Out"}
 	except Exception:
 		raise LogOutOperationFailed("Log Out Unsuccessful")
