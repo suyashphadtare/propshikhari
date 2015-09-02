@@ -93,4 +93,17 @@ def validate_for_user_id_exists(user_id):
 	email = frappe.db.get_value("User", {"user_id": user_id}, "email")
 	if not email:
 		raise DoesNotExistError("User id does not exists")					 
-	return email	
+	return email
+
+
+def generate_hash(txt=None):
+	import hashlib
+	return hashlib.sha224((txt or "") + repr(time.time()))
+
+
+def validate_for_property_photo_fields(request_data):
+	for property_photo in request_data.get("property_photos"):
+		if not property_photo.get("file_data"):
+			raise MandatoryError("Image data not found")
+		if not property_photo.get("file_ext"):
+			raise MandatoryError("Image Extension not found")		

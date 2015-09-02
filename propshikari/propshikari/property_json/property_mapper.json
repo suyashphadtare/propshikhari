@@ -135,9 +135,13 @@
     "is_mandatory": false,
     "field_type": "string"
   },
-  "geo_location": {
+  "geo_location_lat": {
     "is_mandatory": false,
-    "field_type": "object"
+    "field_type": "string"
+  },
+  "geo_location_lon":{
+    "is_mandatory": false,
+    "field_type": "string"
   },
   "percent_completion": {
     "is_mandatory": false,
