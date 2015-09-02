@@ -40,7 +40,7 @@ def search_property(data):
 		response_data = es.search_document(["property"], search_query, old_property_data.get("page_number",1), old_property_data.get("records_per_page",20))
 		request_id = store_request_in_elastic_search(old_property_data,search_query)
 		response_msg = "Property found for specfied criteria" if len(response_data) else "Property not found"
-		from_record = (old_property_data.get("page_number",1) - 1) * old_property_data.get("records_per_page",20)
+		from_record = (old_property_data.get("page_number",1) - 1) * cint(old_property_data.get("records_per_page",20))
 		return {"operation":"Search", "message":response_msg ,"total_records":len(response_data), "request_id":request_id, "records_per_page":old_property_data.get("records_per_page",20),"from_record":from_record ,"to_record": from_record +  len(response_data) ,"data":response_data, "user_id":old_property_data.get("user_id")}
 			
 
