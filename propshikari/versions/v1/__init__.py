@@ -12,16 +12,12 @@ from frappe.utils.file_manager import  save_file
 
 @frappe.whitelist()
 def post_property(data):
-	response_data = api.post_property(data)
-	response_msg = "Property posted successfully" if response_data.get("created",False) else "Property posting failed" 
-	return {"operation":"Create", "message":response_msg, "property_id":response_data.get("_id")}
+	return api.post_property(data)
 
 
 @frappe.whitelist(allow_guest=True)
 def search_property(data):
-	response_data = api.search_property(data)
-	response_msg = "Property found for specfied criteria" if len(response_data) else "Property not found"
-	return {"operation":"Search", "message":response_msg, "data":response_data, "total_records":len(response_data)}
+	return api.search_property(data)
 
 
 
@@ -66,6 +62,10 @@ def get_state_city_location_list(data):
 @frappe.whitelist(allow_guest=True)
 def store_image_to_propshikari(data):
 	return api.store_image_to_propshikari(data)
+
+
+	
+
 
 
 
