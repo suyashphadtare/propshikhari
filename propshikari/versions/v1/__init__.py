@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 import api_handler
 import propshikari.propshikari.propshikari_api as api
+import propshikari.propshikari.property_masters as masters
 from frappe.utils import cstr, cint
 import frappe
 import time
@@ -67,6 +68,19 @@ def get_state_city_location_list(data):
 def store_image_to_propshikari(data):
 	return api.store_image_to_propshikari(data)
 
+
+@frappe.whitelist(allow_guest=True)
+def get_property_types(data):
+	return masters.get_property_types(data)
+
+
+@frappe.whitelist(allow_guest=True)
+def get_amenities(data):
+	return masters.get_amenities(data)
+
+@frappe.whitelist(allow_guest=True)
+def get_flat_facilities(data):
+	return masters.get_flat_facilities(data)
 
 
 
