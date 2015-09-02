@@ -93,4 +93,9 @@ def validate_for_user_id_exists(user_id):
 	email = frappe.db.get_value("User", {"user_id": user_id}, "email")
 	if not email:
 		raise DoesNotExistError("User id does not exists")					 
-	return email	
+	return email
+
+
+def generate_hash(txt=None):
+	import hashlib
+	return hashlib.sha224((txt or "") + repr(time.time()))
