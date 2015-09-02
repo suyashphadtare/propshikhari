@@ -7,7 +7,10 @@ import time
 import random
 from api_handler.api_handler.exceptions import *
 
-
+"""
+	Get List of all property types and subtypes.
+	return the response in format specified in api 
+"""
 def get_property_types(data):
 	if data:
 		
@@ -23,10 +26,14 @@ def get_property_types(data):
 			
 		return {"operation":"Search","message":response_msg,"data":types_list}	
 
+
+"""
+	Get List of all Amenities.
+	return the response in format specified in api 
+"""
 def get_amenities(data):
 	if data:
 		data = json.loads(data)
-			
 		amenities_list = []
 		
 		for property_type in get_types():
@@ -37,6 +44,11 @@ def get_amenities(data):
 			
 		return {"operation":"Search","message":response_msg,"data":amenities_list}
 
+
+"""
+	Get List of all Flat Facilities.
+	return the response in format specified in api 
+"""
 def get_flat_facilities(data):
 	if data:
 		data = json.loads(data)
