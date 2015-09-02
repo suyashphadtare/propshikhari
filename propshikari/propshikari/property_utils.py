@@ -99,3 +99,11 @@ def validate_for_user_id_exists(user_id):
 def generate_hash(txt=None):
 	import hashlib
 	return hashlib.sha224((txt or "") + repr(time.time()))
+
+
+def validate_for_property_photo_fields(request_data):
+	for property_photo in request_data.get("property_photos"):
+		if not property_photo.get("file_data"):
+			raise MandatoryError("Image data not found")
+		if not property_photo.get("file_ext"):
+			raise MandatoryError("Image Extension not found")		

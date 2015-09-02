@@ -10,6 +10,9 @@ import time
 import random
 from collections import OrderedDict
 import datetime
+from PIL import Image
+import os
+import base64
 from api_handler.api_handler.exceptions import *
 
 
@@ -34,9 +37,11 @@ def search_property(data):
 		property_data = putil.validate_property_posting_data(old_property_data,"property_json/property_search.json")
 		search_query = putil.generate_search_query(property_data)
 		es = ElasticSearchController()
-		es_result = es.search_document(["property"], search_query, property_data.get("page_number",1), property_data.get("records_per_page",20))
-		store_request_in_elastic_search(old_property_data,search_query)
-		return es_result
+		response_data = es.search_document(["property"], search_query, old_property_data.get("page_number",1), old_property_data.get("records_per_page",20))
+		request_id = store_request_in_elastic_search(old_property_data,search_query)
+		response_msg = "Property found for specfied criteria" if len(response_data) else "Property not found"
+		from_record = (old_property_data.get("page_number",1) - 1) * old_property_data.get("records_per_page",20)
+		return {"operation":"Search", "message":response_msg ,"total_records":len(response_data), "request_id":request_id, "records_per_page":old_property_data.get("records_per_page",20),"from_record":from_record ,"to_record": from_record +  len(response_data) ,"data":response_data, "user_id":old_property_data.get("user_id")}
 			
 
 
@@ -68,7 +73,7 @@ def register_user(data):
 					"new_password": user_data.get("password"),
 					"user_id": user_id,
 					"mobile_no":  user_data.get("mobile_number"),
-					"access_type" :user_data.get("user_type"),
+					"access_type" :user_data.get("access_type"),
 					"user_type": "Website User",
 					"user_image":"assets/propshikari/default_user.gif",
 					"send_welcome_email":0
@@ -80,6 +85,7 @@ def register_user(data):
 			send_email(user_data.get("email"), "Welcome to Propshikari", "/templates/new_user_template.html", args)
 			return {"operation":"create", "message":"User Registration done Successfully", "user_id":user_id}
 		except frappe.OutgoingEmailError:
+			frappe.response["user_id"] = user_id
 			raise OutgoingEmailError("User registered successfully but email not sent.")
 		except Exception,e:
 			raise UserRegisterationError("User Registration Failed")		
@@ -205,7 +211,6 @@ def get_states_cities_locations_from_propshikari(data):
 
 
 def store_image_to_propshikari(request_data):
-	import os
 	request_data = json.loads(request_data)
 	putil.validate_property_data(request_data,["profile_photo"])
 	if not request_data.get("profile_photo").get("file_ext"):
@@ -214,7 +219,6 @@ def store_image_to_propshikari(request_data):
 	if not os.path.exists(frappe.get_site_path("public","files",request_data.get("user_id"))):
 		os.mkdir(frappe.get_site_path("public","files",request_data.get("user_id")))
 	try:
-		import base64
 		imgdata = base64.b64decode(request_data.get("profile_photo").get("file_data"))
 		file_name = "PSUI/" + putil.generate_hash()  +  request_data.get("profile_photo").get("file_ext")
 		with open(frappe.get_site_path("public","files",request_data.get("user_id"),file_name),"wb+") as fi_nm:
@@ -228,29 +232,26 @@ def store_image_to_propshikari(request_data):
 
 def store_request_in_elastic_search(property_data,search_query):
 	request_id = cstr(int(time.time())) + '-' +  cstr(random.randint(100000,999999))
-	if property_data.get("user_id") != "Guest":
-		request_dict = {
-			"user_id":property_data.get("user_id"),
-			"request_id":request_id, 
-			"operation":property_data.get("operation"), 
-			"property_type":property_data.get("property_type"), 
-			"property_subtype":property_data.get("property_subtype"), 
-			"location":property_data.get("location"), 
-			"property_subtype_option":property_data.get("property_subtype_option"), 
-			"min_area":property_data.get("min_area"),
-			"max_area":property_data.get("max_area"), 
-			"min_budget":property_data.get("min_budget"), 
-			"max_budget":property_data.get("max_budget"),
-			"search_query":cstr(search_query)
+	request_dict = {
+		"user_id":property_data.get("user_id"),
+		"request_id":request_id, 
+		"operation":property_data.get("operation"), 
+		"property_type":property_data.get("property_type"), 
+		"property_subtype":property_data.get("property_subtype"), 
+		"location":property_data.get("location"), 
+		"property_subtype_option":property_data.get("property_subtype_option"), 
+		"min_area":property_data.get("min_area"),
+		"max_area":property_data.get("max_area"), 
+		"min_budget":property_data.get("min_budget"), 
+		"max_budget":property_data.get("max_budget"),
+		"search_query":cstr(search_query)
 
-		}
-		meta_dict = add_meta_fields_before_posting(property_data)
-		request_dict.update(meta_dict)
-		es = ElasticSearchController()
-		es_result = es.index_document("request",request_dict, request_id)
+	}
+	meta_dict = add_meta_fields_before_posting(property_data)
+	request_dict.update(meta_dict)
+	es = ElasticSearchController()
+	es_result = es.index_document("request",request_dict, request_id)
 	return request_id
-
-
 
 
 def add_meta_fields_before_posting(property_data):
@@ -263,7 +264,7 @@ def add_meta_fields_before_posting(property_data):
 	"modified_date":new_date,
 	"modified_datetime":new_datetime,
 	"posted_datetime":new_datetime
-	}		
+	}
 
 
 

@@ -17,9 +17,7 @@ def post_property(data):
 
 @frappe.whitelist(allow_guest=True)
 def search_property(data):
-	response_data = api.search_property(data)
-	response_msg = "Property found for specfied criteria" if len(response_data) else "Property not found"
-	return {"operation":"Search", "message":response_msg, "data":response_data, "total_records":len(response_data)}
+	return api.search_property(data)
 
 
 
