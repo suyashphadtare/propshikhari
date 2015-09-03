@@ -59,9 +59,10 @@ def get_state_city_location_list(data):
 
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def store_image_to_propshikari(data):
 	return api.store_image_to_propshikari(data)
+
 
 
 	

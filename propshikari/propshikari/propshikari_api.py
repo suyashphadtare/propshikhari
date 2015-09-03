@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 import frappe
 from frappe.utils import cstr, cint
 from elastic_controller import ElasticSearchController
-from frappe.utils import add_days, getdate, now, nowdate
+from frappe.utils import add_days, getdate, now, nowdate ,random_string
 from frappe.auth import _update_password
 import property_utils as putil
 import json
@@ -20,16 +20,19 @@ from api_handler.api_handler.exceptions import *
 def post_property(data):
 	if data:
 		old_data = json.loads(data)
+		putil.validate_for_user_id_exists(old_data.get("user_id"))
 		data = putil.validate_property_posting_data(old_data,"property_json/property_mapper.json")
 		custom_id = cstr(int(time.time())) + '-' +  cstr(random.randint(10000,99999))
 		data["property_id"] = custom_id
 		meta_dict = add_meta_fields_before_posting(old_data)
 		data.update(meta_dict)
+		property_photo_url_list = store_property_photos_in_propshikari(old_data.get("property_photos"),custom_id)
+		data["property_photos"] = property_photo_url_list
+		data["property_photo"] = property_photo_url_list[1] if property_photo_url_list else ""
 		es = ElasticSearchController()
 		response_data = es.index_document("property",data, custom_id)
 		response_msg = "Property posted successfully" if response_data.get("created",False) else "Property posting failed" 
-		return {"operation":"Create", "message":response_msg, "property_id":response_data.get("_id"), "user_id":old_data.get("user_id")}	
-
+		return {"operation":"Create", "message":response_msg, "property_id":response_data.get("_id"), "user_id":old_data.get("user_id")}
 
 def search_property(data):
 	if data:
@@ -38,11 +41,12 @@ def search_property(data):
 		search_query = putil.generate_search_query(property_data)
 		es = ElasticSearchController()
 		response_data = es.search_document(["property"], search_query, old_property_data.get("page_number",1), old_property_data.get("records_per_page",20))
+		return response_data
 		request_id = store_request_in_elastic_search(old_property_data,search_query)
 		response_msg = "Property found for specfied criteria" if len(response_data) else "Property not found"
 		from_record = (old_property_data.get("page_number",1) - 1) * old_property_data.get("records_per_page",20)
 		return {"operation":"Search", "message":response_msg ,"total_records":len(response_data), "request_id":request_id, "records_per_page":old_property_data.get("records_per_page",20),"from_record":from_record ,"to_record": from_record +  len(response_data) ,"data":response_data, "user_id":old_property_data.get("user_id")}
-			
+		
 
 
 @frappe.whitelist(allow_guest=True)
@@ -266,6 +270,37 @@ def add_meta_fields_before_posting(property_data):
 	"posted_datetime":new_datetime
 	}
 
+
+
+def store_property_photos_in_propshikari(request_data, custom_id):
+	property_url_list = []
+	size = 400,400
+	if request_data:
+		putil.validate_for_property_photo_fields(request_data)
+		if not os.path.exists(frappe.get_site_path("public","files",custom_id)):
+			os.makedirs(frappe.get_site_path("public","files",custom_id,"regular"))
+			os.mkdir(frappe.get_site_path("public","files",custom_id,"thumbnail"))
+		for property_photo in request_data:
+			file_ext = property_photo.get("file_ext")	
+			try:				
+				imgdata = base64.b64decode(property_photo.get("file_data"))
+			 	old_file_name = "PSPI-" + cstr(time.time()) + random_string(5) + "." + file_ext
+				
+				with open(frappe.get_site_path("public","files",custom_id,"regular",old_file_name),"wb+") as fi_nm:
+					fi_nm.write(imgdata)
+				file_name = "files/" + custom_id + "/regular/" + old_file_name
+				regular_image_url = frappe.request.host_url + file_name
+				property_url_list.append(regular_image_url)
+				
+				thumbnail_file_name = frappe.get_site_path("public","files",custom_id,"thumbnail",old_file_name)
+				im = Image.open(frappe.get_site_path("public","files",custom_id,"regular",old_file_name))
+				im.thumbnail(size, Image.ANTIALIAS)
+				im.save(thumbnail_file_name ,file_ext)
+				thumbnail_file_url = "files/" + custom_id + "/thumbnail/" + old_file_name	
+				property_url_list.append(frappe.request.host_url + thumbnail_file_url)
+			except Exception,e:
+				raise e
+	return property_url_list
 
 
 
