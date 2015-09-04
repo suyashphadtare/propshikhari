@@ -27,4 +27,13 @@ class ElasticSearchController():
 		"""		
 		
 		response = self.es.search(index=["propshikari"], doc_type=type_list, body=search_body, from_=(page_no - 1) * 20, size=no_of_records)
-		return [response["_source"] for response in response["hits"]["hits"]]		
+		return [response["_source"] for response in response["hits"]["hits"]]
+
+
+	
+	def search_document_for_given_id(self, type_list, search_id, exclude_list=[]):
+
+		""" Get document of given ids from elasticsearch """
+
+		response = self.es.get(index="propshikari", doc_type=type_list, id=search_id, _source_exclude=[] )
+		return response.get("_source")		

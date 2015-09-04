@@ -78,3 +78,54 @@ def get_amenities_subs(property_type):
 def get_facility_subs(property_type):
 	return frappe.db.get_all("Flat Facilities",
 		filters={"property_type": property_type},fields=["facility"])
+
+
+
+""" 
+	Create Group in Hunterscamp according to given request_data
+
+"""
+
+
+def create_group_in_hunterscamp(request_data):
+	if request_data:
+		request_data = json.loads(request_data)
+		putil.validate_for_user_id_exists(request_data.get("user_id"))
+		try:
+			gr_doc = frappe.new_doc("Group")
+			gr_doc.group_title = request_data.get("group_title")
+			gr_doc.operation = request_data.get("operation")
+			gr_doc.property_type =  request_data.get("property_type")
+			gr_doc.property_sub_type = request_data.get("property_sub_type")
+			gr_doc.location = request_data.get("location")
+			gr_doc.property_type_option = request_data.get("property_subtype_option")
+			gr_doc.creation_via  = "Website"
+			gr_doc.min_area = request_data.get("min_area",0)
+			gr_doc.max_area = request_data.get("max_area")
+			gr_doc.min_budget = request_data.get("min_budget",0)
+			gr_doc.max_budget = request_data.get("max_budget")
+			gr_doc.unit_of_area = request_data.get("unit_of_area")
+			gr_doc.save()
+			return {"operation":"Create", "group_id":gr_doc.name, "message":"Group Created"}
+		except Exception,e:
+			return {"operation":"Create", "message":"Group not created"}
+
+
+
+def join_user_with_group_id(request_data):			
+	if request_data:
+		request_data = json.loads(request_data)
+		email = putil.validate_for_user_id_exists(request_data.get("user_id"))
+		putil.validate_property_data(request_data,["user_id","group_id"])
+		if not frappe.db.get_value("Group",{"name":request_data.get("group_id")},"name"):
+			raise DoesNotExistError("Group ID {0} does not exists".format(request_data.get("group_id")))
+		try:
+			grusr = frappe.new_doc("Group User")	
+			grusr.user_id = request_data.get("user_id")
+			grusr.group_id = request_data.get("group_id")
+			grusr.user  = email
+			grusr.save()
+			return {"operation":"Search", "message":"Group joined"}
+		except Exception,e:
+			return {"operation":"Search", "message":"Group joining Failed"}
+			

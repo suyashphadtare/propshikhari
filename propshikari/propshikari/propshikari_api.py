@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 import frappe
 from frappe.utils import cstr, cint
 from elastic_controller import ElasticSearchController
-from frappe.utils import add_days, getdate, now, nowdate
+from frappe.utils import add_days, getdate, now, nowdate ,random_string
 from frappe.auth import _update_password
 import property_utils as putil
 import json
@@ -20,16 +20,19 @@ from api_handler.api_handler.exceptions import *
 def post_property(data):
 	if data:
 		old_data = json.loads(data)
+		putil.validate_for_user_id_exists(old_data.get("user_id"))
 		data = putil.validate_property_posting_data(old_data,"property_json/property_mapper.json")
-		custom_id = cstr(int(time.time())) + '-' +  cstr(random.randint(10000,99999))
+		custom_id = "PROP"  + cstr(int(time.time())) + '-' +  cstr(random.randint(10000,99999))
 		data["property_id"] = custom_id
 		meta_dict = add_meta_fields_before_posting(old_data)
 		data.update(meta_dict)
+		property_photo_url_list = store_property_photos_in_propshikari(old_data.get("property_photos"),custom_id)
+		data["property_photos"] = property_photo_url_list
+		data["property_photo"] = property_photo_url_list[1] if property_photo_url_list else ""
 		es = ElasticSearchController()
 		response_data = es.index_document("property",data, custom_id)
 		response_msg = "Property posted successfully" if response_data.get("created",False) else "Property posting failed" 
-		return {"operation":"Create", "message":response_msg, "property_id":response_data.get("_id"), "user_id":old_data.get("user_id")}	
-
+		return {"operation":"Create", "message":response_msg, "property_id":response_data.get("_id"), "user_id":old_data.get("user_id")}
 
 def search_property(data):
 	if data:
@@ -42,7 +45,7 @@ def search_property(data):
 		response_msg = "Property found for specfied criteria" if len(response_data) else "Property not found"
 		from_record = (old_property_data.get("page_number",1) - 1) * cint(old_property_data.get("records_per_page",20))
 		return {"operation":"Search", "message":response_msg ,"total_records":len(response_data), "request_id":request_id, "records_per_page":old_property_data.get("records_per_page",20),"from_record":from_record ,"to_record": from_record +  len(response_data) ,"data":response_data, "user_id":old_property_data.get("user_id")}
-			
+		
 
 
 @frappe.whitelist(allow_guest=True)
@@ -63,7 +66,7 @@ def register_user(data):
 			raise UserAlreadyRegisteredError("User {0} already Registered".format(user_data.get("email")))
 	else:
 		try:
-			user_id = cstr(int(time.time())) + '-' +  cstr(random.randint(1000,9999))
+			user_id = "USR"  + cstr(int(time.time())) + '-' +  cstr(random.randint(1000,9999))
 			user = frappe.get_doc({
 					"doctype":"User",
 					"email":user_data.get("email"),
@@ -265,6 +268,80 @@ def add_meta_fields_before_posting(property_data):
 	"modified_datetime":new_datetime,
 	"posted_datetime":new_datetime
 	}
+
+
+
+def store_property_photos_in_propshikari(request_data, custom_id):
+	property_url_list = []
+	size = 400,400
+	if request_data:
+		putil.validate_for_property_photo_fields(request_data)
+		if not os.path.exists(frappe.get_site_path("public","files",custom_id)):
+			os.makedirs(frappe.get_site_path("public","files",custom_id,"regular"))
+			os.mkdir(frappe.get_site_path("public","files",custom_id,"thumbnail"))
+		for property_photo in request_data:
+			file_ext = property_photo.get("file_ext")	
+			try:				
+				imgdata = base64.b64decode(property_photo.get("file_data"))
+			 	old_file_name = "PSPI-" + cstr(time.time()) + random_string(5) + "." + file_ext
+				
+				with open(frappe.get_site_path("public","files",custom_id,"regular",old_file_name),"wb+") as fi_nm:
+					fi_nm.write(imgdata)
+				file_name = "files/" + custom_id + "/regular/" + old_file_name
+				regular_image_url = frappe.request.host_url + file_name
+				property_url_list.append(regular_image_url)
+				
+				thumbnail_file_name = frappe.get_site_path("public","files",custom_id,"thumbnail",old_file_name)
+				im = Image.open(frappe.get_site_path("public","files",custom_id,"regular",old_file_name))
+				im.thumbnail(size, Image.ANTIALIAS)
+				im.save(thumbnail_file_name ,file_ext)
+				thumbnail_file_url = "files/" + custom_id + "/thumbnail/" + old_file_name	
+				property_url_list.append(frappe.request.host_url + thumbnail_file_url)
+			except Exception,e:
+				raise ImageUploadError("Property Image updation failed")
+	return property_url_list
+
+
+
+
+def search_group_with_given_criteria(request_data):
+	if request_data:
+		request_data = json.loads(request_data)
+		email = putil.validate_for_user_id_exists(request_data.get("user_id"))
+		es = ElasticSearchController()
+		response = es.search_document_for_given_id("request",request_data.get("request_id"))
+		if not response:
+			raise DoesNotExistError("Request Id Does Not Exists")
+		try:
+			group_search_conditions = make_conditions_for_group_search(response)
+			group_result = frappe.db.sql(""" select  name as group_id, operation, property_type , property_sub_type, property_type_option ,location, min_budget, max_budget, min_area, max_area  from `tabGroup` {0} """.format(group_search_conditions),as_dict=True)
+			for group in group_result:
+				join_flag = frappe.db.get_value("Group User" , {"group_id":group.get("group_id"), "user_id":request_data.get("user_id")},"name")
+				group["user_joined"] = 1 if join_flag else 0
+			return {"operation":"Search", "request_id":request_data.get("request_id"), "data":group_result, "message":"Matching Groups Found" if len(group_result) else "Group Not Found" }
+		except Exception,e:
+			return frappe.get_traceback()
+
+
+def make_conditions_for_group_search(response):
+	group_search_conditions = "where operation='{0}' and property_sub_type='{1}' and property_type='{2}' ".format(response.get("operation"),response.get("property_subtype"),response.get("property_type"))
+	if response.get("property_subtype_option"):
+		group_search_conditions += " and property_type_option = '{0}' ".format(response.get("property_subtype_option"))
+	if response.get("location"):
+		group_search_conditions += " and location like '%{0}%' ".format(response.get("location"))
+	
+	range_dict = {"min_area":"max_area", "min_budget":"max_budget"}
+	
+	for min_field,max_field in range_dict.items():
+		if response.get(min_field) and not response.get(max_field):
+			group_search_conditions += " and  {0} >= {1} ".format(min_field, response.get(min_field))
+		elif not response.get(min_field) and response.get(max_field):
+			group_search_conditions += " and {0} <= {1} ".format(max_field , response.get(max_field))
+		elif response.get(min_field) and response.get(max_field):
+			group_search_conditions += " and {0} >= {1} and {2} <= {3}".format(min_field, response.get(min_field),max_field , response.get(max_field)) 			
+	return group_search_conditions		
+
+
 
 
 
