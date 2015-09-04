@@ -102,7 +102,7 @@ def generate_hash(txt=None):
 
 
 def validate_for_property_photo_fields(request_data):
-	for property_photo in request_data.get("property_photos"):
+	for property_photo in request_data:
 		if not property_photo.get("file_data"):
 			raise MandatoryError("File data not found in property photo")
 		if not property_photo.get("file_ext"):

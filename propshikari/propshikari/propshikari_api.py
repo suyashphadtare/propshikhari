@@ -13,6 +13,7 @@ import datetime
 from PIL import Image
 import os
 import base64
+import elasticsearch
 from api_handler.api_handler.exceptions import *
 
 
@@ -222,7 +223,9 @@ def store_image_to_propshikari(request_data):
 	if not os.path.exists(frappe.get_site_path("public","files",request_data.get("user_id"))):
 		os.mkdir(frappe.get_site_path("public","files",request_data.get("user_id")))
 	try:
-		imgdata = base64.b64decode(request_data.get("profile_photo").get("file_data"))
+		base64_data = request_data.get("profile_photo").get("file_data").encode("utf8")				
+		base64_data = base64_data.split(',')[1]
+		imgdata = base64.b64decode(base64_data)
 		file_name = "PSUI/" + putil.generate_hash()  +  request_data.get("profile_photo").get("file_ext")
 		with open(frappe.get_site_path("public","files",request_data.get("user_id"),file_name),"wb+") as fi_nm:
 			fi_nm.write(imgdata)
@@ -281,8 +284,10 @@ def store_property_photos_in_propshikari(request_data, custom_id):
 			os.mkdir(frappe.get_site_path("public","files",custom_id,"thumbnail"))
 		for property_photo in request_data:
 			file_ext = property_photo.get("file_ext")	
-			try:				
-				imgdata = base64.b64decode(property_photo.get("file_data"))
+			try:
+				base64_data = property_photo.get("file_data").encode("utf8")				
+				base64_data = base64_data.split(',')[1]
+				imgdata = base64.b64decode(base64_data)
 			 	old_file_name = "PSPI-" + cstr(time.time()) + random_string(5) + "." + file_ext
 				
 				with open(frappe.get_site_path("public","files",custom_id,"regular",old_file_name),"wb+") as fi_nm:
@@ -309,7 +314,7 @@ def search_group_with_given_criteria(request_data):
 		request_data = json.loads(request_data)
 		email = putil.validate_for_user_id_exists(request_data.get("user_id"))
 		es = ElasticSearchController()
-		response = es.search_document_for_given_id("request",request_data.get("request_id"))
+		response = es.search_document_for_given_id("request",request_data.get("request_id"))			
 		if not response:
 			raise DoesNotExistError("Request Id Does Not Exists")
 		try:
@@ -320,7 +325,7 @@ def search_group_with_given_criteria(request_data):
 				group["user_joined"] = 1 if join_flag else 0
 			return {"operation":"Search", "request_id":request_data.get("request_id"), "data":group_result, "message":"Matching Groups Found" if len(group_result) else "Group Not Found" }
 		except Exception,e:
-			return frappe.get_traceback()
+			return SearchGroupOperationFailed("Search Group Operation Failed")
 
 
 def make_conditions_for_group_search(response):
@@ -339,7 +344,21 @@ def make_conditions_for_group_search(response):
 			group_search_conditions += " and {0} <= {1} ".format(max_field , response.get(max_field))
 		elif response.get(min_field) and response.get(max_field):
 			group_search_conditions += " and {0} >= {1} and {2} <= {3}".format(min_field, response.get(min_field),max_field , response.get(max_field)) 			
-	return group_search_conditions		
+	return group_search_conditions
+
+
+def get_property_of_given_id(request_data):
+	if request_data:
+		request_data = json.loads(request_data)
+		try:
+			email = putil.validate_for_user_id_exists(request_data.get("user_id"))
+			es = ElasticSearchController()
+			response = es.search_document_for_given_id("property",request_data.get("property_id"), ["property_photos"])
+			return {"operation":"Search", "message":"Property found" if len(response) else "Property Not Found", "user_id":request_data.get("user_id"), "data":response}
+		except elasticsearch.TransportError:
+			raise DoesNotExistError("Property Id does not exists")
+		except Exception,e:
+			raise GetPropertyOperationFailed("Get Property Operation Failed")	
 
 
 

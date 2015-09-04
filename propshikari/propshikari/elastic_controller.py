@@ -35,5 +35,5 @@ class ElasticSearchController():
 
 		""" Get document of given ids from elasticsearch """
 
-		response = self.es.get(index="propshikari", doc_type=type_list, id=search_id, _source_exclude=[] )
+		response = self.es.get(index="propshikari", doc_type=type_list, id=search_id, _source_exclude=exclude_list ,_source_include=[])
 		return response.get("_source")		
