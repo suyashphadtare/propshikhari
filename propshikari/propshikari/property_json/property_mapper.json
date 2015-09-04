@@ -210,6 +210,10 @@
   "possession_date": {
     "is_mandatory": false,
     "field_type": "string"
+  },
+  "property_owner":{
+    "is_mandatory": false,
+    "field_type": "string"
   }
 
 }

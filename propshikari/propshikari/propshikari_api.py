@@ -44,7 +44,7 @@ def search_property(data):
 		return response_data
 		request_id = store_request_in_elastic_search(old_property_data,search_query)
 		response_msg = "Property found for specfied criteria" if len(response_data) else "Property not found"
-		from_record = (old_property_data.get("page_number",1) - 1) * old_property_data.get("records_per_page",20)
+		from_record = (old_property_data.get("page_number",1) - 1) * cint(old_property_data.get("records_per_page",20))
 		return {"operation":"Search", "message":response_msg ,"total_records":len(response_data), "request_id":request_id, "records_per_page":old_property_data.get("records_per_page",20),"from_record":from_record ,"to_record": from_record +  len(response_data) ,"data":response_data, "user_id":old_property_data.get("user_id")}
 		
 
@@ -188,8 +188,8 @@ def log_out_from_propshikari(data):
 	request_data = json.loads(data)
 	user_email = putil.validate_for_user_id_exists(request_data.get("user_id"))
 	try:
-		loginmgr = frappe.auth.LoginManager()
-		loginmgr.logout()
+		frappe.local.login_manager.logout()
+		frappe.db.commit()
 		return {"operation":"Log Out", "message":"Successfully Logged Out"}
 	except Exception:
 		raise LogOutOperationFailed("Log Out Unsuccessful")
