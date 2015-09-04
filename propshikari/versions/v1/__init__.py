@@ -95,6 +95,11 @@ def search_group(data):
 	return api.search_group_with_given_criteria(data)
 
 
+@frappe.whitelist()
+def get_individual_property(data):
+	return api.get_property_of_given_id(data)
+
+
 
 
 
