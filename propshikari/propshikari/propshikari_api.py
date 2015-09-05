@@ -20,33 +20,48 @@ from api_handler.api_handler.exceptions import *
 
 def post_property(data):
 	if data:
-		old_data = json.loads(data)
-		putil.validate_for_user_id_exists(old_data.get("user_id"))
-		data = putil.validate_property_posting_data(old_data,"property_json/property_mapper.json")
-		custom_id = "PROP"  + cstr(int(time.time())) + '-' +  cstr(random.randint(10000,99999))
-		data["property_id"] = custom_id
-		meta_dict = add_meta_fields_before_posting(old_data)
-		data.update(meta_dict)
-		property_photo_url_list = store_property_photos_in_propshikari(old_data.get("property_photos"),custom_id)
-		data["property_photos"] = property_photo_url_list
-		data["property_photo"] = property_photo_url_list[1] if property_photo_url_list else ""
-		es = ElasticSearchController()
-		response_data = es.index_document("property",data, custom_id)
-		response_msg = "Property posted successfully" if response_data.get("created",False) else "Property posting failed" 
-		return {"operation":"Create", "message":response_msg, "property_id":response_data.get("_id"), "user_id":old_data.get("user_id")}
+		try:
+			old_data = json.loads(data)
+			putil.validate_for_user_id_exists(old_data.get("user_id"))
+			data = putil.validate_property_posting_data(old_data,"property_json/property_mapper.json")
+			custom_id = "PROP"  + cstr(int(time.time())) + '-' +  cstr(random.randint(10000,99999))
+			data["property_id"] = custom_id
+			meta_dict = add_meta_fields_before_posting(old_data)
+			data.update(meta_dict)
+			property_photo_url_list = store_property_photos_in_propshikari(old_data.get("property_photos"),custom_id)
+			data["property_photos"] = property_photo_url_list
+			data["property_photo"] = property_photo_url_list[1] if property_photo_url_list else ""
+			es = ElasticSearchController()
+			response_data = es.index_document("property",data, custom_id)
+			response_msg = "Property posted successfully" if response_data.get("created",False) else "Property posting failed" 
+			return {"operation":"Create", "message":response_msg, "property_id":response_data.get("_id"), "user_id":old_data.get("user_id")}	
+		except elasticsearch.RequestError,e:
+			raise ElasticInvalidInputFormatError(e.error)
+		except elasticsearch.ElasticsearchException,e:
+			raise ElasticSearchException(e.error)
+		except Exception,e:
+			raise e	
+
+
 
 def search_property(data):
 	if data:
-		old_property_data = json.loads(data)
-		property_data = putil.validate_property_posting_data(old_property_data,"property_json/property_search.json")
-		search_query = putil.generate_search_query(property_data)
-		es = ElasticSearchController()
-		response_data = es.search_document(["property"], search_query, old_property_data.get("page_number",1), old_property_data.get("records_per_page",20))
-		request_id = store_request_in_elastic_search(old_property_data,search_query)
-		response_msg = "Property found for specfied criteria" if len(response_data) else "Property not found"
-		from_record = (old_property_data.get("page_number",1) - 1) * cint(old_property_data.get("records_per_page",20))
-		return {"operation":"Search", "message":response_msg ,"total_records":len(response_data), "request_id":request_id, "records_per_page":old_property_data.get("records_per_page",20),"from_record":from_record ,"to_record": from_record +  len(response_data) ,"data":response_data, "user_id":old_property_data.get("user_id")}
-		
+		try:
+			old_property_data = json.loads(data)
+			property_data = putil.validate_property_posting_data(old_property_data,"property_json/property_search.json")
+			search_query = putil.generate_search_query(property_data)
+			es = ElasticSearchController()
+			response_data = es.search_document(["property"], search_query, old_property_data.get("page_number",1), old_property_data.get("records_per_page",20))
+			request_id = store_request_in_elastic_search(old_property_data,search_query)
+			response_msg = "Property found for specfied criteria" if len(response_data) else "Property not found"
+			from_record = (old_property_data.get("page_number",1) - 1) * cint(old_property_data.get("records_per_page",20))
+			return {"operation":"Search", "message":response_msg ,"total_records":len(response_data), "request_id":request_id, "records_per_page":old_property_data.get("records_per_page",20),"from_record":from_record ,"to_record": from_record +  len(response_data) ,"data":response_data, "user_id":old_property_data.get("user_id")}
+		except elasticsearch.RequestError,e:
+			raise ElasticInvalidInputFormatError(e.error)
+		except elasticsearch.ElasticsearchException,e:
+			raise ElasticSearchException(e.error)
+		except Exception,e:
+			raise e
 
 
 @frappe.whitelist(allow_guest=True)
