@@ -51,11 +51,11 @@ def search_property(data):
 			property_data = putil.validate_property_posting_data(old_property_data,"property_json/property_search.json")
 			search_query = putil.generate_search_query(property_data)
 			es = ElasticSearchController()
-			response_data = es.search_document(["property"], search_query, old_property_data.get("page_number",1), old_property_data.get("records_per_page",20))
+			response_data = es.search_document(["property"], search_query, old_property_data.get("page_number",1), old_property_data.get("records_per_page",40))
 			request_id = store_request_in_elastic_search(old_property_data,search_query)
 			response_msg = "Property found for specfied criteria" if len(response_data) else "Property not found"
-			from_record = (old_property_data.get("page_number",1) - 1) * cint(old_property_data.get("records_per_page",20))
-			return {"operation":"Search", "message":response_msg ,"total_records":len(response_data), "request_id":request_id, "records_per_page":old_property_data.get("records_per_page",20),"from_record":from_record ,"to_record": from_record +  len(response_data) ,"data":response_data, "user_id":old_property_data.get("user_id")}
+			from_record = (old_property_data.get("page_number",1) - 1) * cint(old_property_data.get("records_per_page",40))
+			return {"operation":"Search", "message":response_msg ,"total_records":len(response_data), "request_id":request_id, "records_per_page":old_property_data.get("records_per_page",40),"from_record":from_record ,"to_record": from_record +  len(response_data) ,"data":response_data, "user_id":old_property_data.get("user_id")}
 		except elasticsearch.RequestError,e:
 			raise ElasticInvalidInputFormatError(e.error)
 		except elasticsearch.ElasticsearchException,e:
@@ -314,7 +314,7 @@ def store_property_photos_in_propshikari(request_data, custom_id):
 				thumbnail_file_name = frappe.get_site_path("public","files",custom_id,"thumbnail",old_file_name)
 				im = Image.open(frappe.get_site_path("public","files",custom_id,"regular",old_file_name))
 				im.thumbnail(size, Image.ANTIALIAS)
-				im.save(thumbnail_file_name ,file_ext)
+				im.save(thumbnail_file_name)
 				thumbnail_file_url = "files/" + custom_id + "/thumbnail/" + old_file_name	
 				property_url_list.append(frappe.request.host_url + thumbnail_file_url)
 			except Exception,e:
@@ -365,25 +365,121 @@ def make_conditions_for_group_search(response):
 def get_property_of_given_id(request_data):
 	if request_data:
 		request_data = json.loads(request_data)
+		email = putil.validate_for_user_id_exists(request_data.get("user_id"))
 		try:
-			email = putil.validate_for_user_id_exists(request_data.get("user_id"))
 			es = ElasticSearchController()
 			response = es.search_document_for_given_id("property",request_data.get("property_id"), ["property_photos"])
 			return {"operation":"Search", "message":"Property found" if len(response) else "Property Not Found", "user_id":request_data.get("user_id"), "data":response}
 		except elasticsearch.TransportError:
 			raise DoesNotExistError("Property Id does not exists")
 		except Exception,e:
-			raise GetPropertyOperationFailed("Get Property Operation Failed")	
+			raise GetPropertyOperationFailed("Get Property Operation Failed")
 
 
 
+def get_property_of_particular_tag(request_data):
+	if request_data:
+		request_data = json.loads(request_data)
+		if not request_data.get("tag"):
+			raise MandatoryError("Mandatory Field Tag missing")
+		try:
+			search_query = { "query":{ "match":{ "tag":request_data.get("tag") } }  } 
+			es = ElasticSearchController()
+			response_data = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40))	
+			response_msg = "Property found for specfied criteria" if len(response_data) else "Property not found"
+			from_record = (request_data.get("page_number",1) - 1) * cint(request_data.get("records_per_page",40))
+			return {"operation":"Search", "message":response_msg ,"total_records":len(response_data), "records_per_page":request_data.get("records_per_page",40),"from_record":from_record ,"to_record": from_record +  len(response_data) ,"data":response_data, "user_id":request_data.get("user_id"), "tag":request_data.get("tag")}
+		except elasticsearch.ElasticsearchException,e:
+			raise ElasticSearchException(e.error)
+		except Exception,e:
+			raise OperationFailed("Get Tagged Property Operation Failed")
 
 
 
+def get_property_contact(request_data):
+	if request_data:
+		request_data = json.loads(request_data)
+		email = putil.validate_for_user_id_exists(request_data.get("user_id"))	
+		if not request_data.get("property_id"):
+			raise MandatoryError("Mandatory Field Property Id missing")
+		try:
+			es = ElasticSearchController()
+			response = es.search_document_for_given_id("property",request_data.get("property_id"),[],["agent_name", "agent_no", "contact_no" ,"contact_person"])
+			return {"operation":"Search", "message":"Contact Details found" if len(response) else "Contact Details Not Found", "user_id":request_data.get("user_id"), "data":response}
+		except elasticsearch.TransportError:
+			raise DoesNotExistError("Property Id does not exists")
+		except Exception,e:
+			raise OperationFailed("Get Property Contact Operation Failed")
 
 
 
+def get_shortlisted_property(request_data):
+	if request_data:
+		request_data = json.loads(request_data)
+		email = putil.validate_for_user_id_exists(request_data.get("user_id"))
+		property_ids_list = frappe.db.get_values("Shortlisted Property", {"user_id":request_data.get("user_id")}, "property_id")
+		if not property_ids_list:
+			return {"operation":"Search", "message":"No Single Shortlisted property found", "user_id":request_data.get("user_id")}
+		property_ids_list = [ property_id[0] for property_id in property_ids_list if property_id]
+		try:
+			search_query = { "query":{ "ids":{ "values":property_ids_list } }  } 
+			es = ElasticSearchController()
+			response_data = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40))	
+			for response in response_data:
+				new_list = response.get("tag",[])
+				new_list.append("Shortlisted")
+				response["tag"] = new_list
+			response_msg = "Shortlisted Property Found" if len(response_data) else "Shortlsited Property not found"
+			from_record = (request_data.get("page_number",1) - 1) * cint(request_data.get("records_per_page",40))
+			return {"operation":"Search", "message":response_msg ,"total_records":len(response_data), "records_per_page":request_data.get("records_per_page",40),"from_record":from_record ,"to_record": from_record +  len(response_data) ,"data":response_data, "user_id":request_data.get("user_id")}
+		except elasticsearch.ElasticsearchException,e:
+			raise ElasticSearchException(e.error)
+		except Exception,e:
+		 	raise OperationFailed("Get Shortlisted Property Operation Failed")
 
-		
-				
 
+
+def get_user_properties(request_data):
+	if request_data:
+		request_data = json.loads(request_data)
+		email = putil.validate_for_user_id_exists(request_data.get("user_id"))
+		search_query =  { "query": { "match":{ "posted_by":request_data.get("user_id") } } }
+		try:
+			es = ElasticSearchController()
+			response_data = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40))
+			response_msg = "User Property Found" if len(response_data) else "User Property not found"
+			from_record = (request_data.get("page_number",1) - 1) * cint(request_data.get("records_per_page",40))
+			return {"operation":"Search", "message":response_msg ,"total_records":len(response_data), "records_per_page":request_data.get("records_per_page",40),"from_record":from_record ,"to_record": from_record +  len(response_data) ,"data":response_data, "user_id":request_data.get("user_id")}
+		except elasticsearch.ElasticsearchException,e:
+			raise ElasticSearchException(e.error)
+		except Exception,e:
+			raise OperationFailed("Get User Properties Operation Failed")
+
+
+
+def get_alerts():
+	pass
+
+
+
+def share_property(request_data):
+	if request_data:
+		request_data = json.loads(request_data)
+		email = putil.validate_for_user_id_exists(request_data.get("user_id"))
+		user_name = frappe.db.get_value("User", email, ["first_name", "last_name"],as_dict=True)
+		if not request_data.get("comments"):
+			raise MandatoryError("Comments field not found")		
+		try:
+			property_ids_list = {  comment.get("property_id"):comment.get("comment","")  for comment in request_data.get("comments") if comment.get("property_id")}
+			search_query = { "query":{ "ids":{ "values":property_ids_list } }  } 
+			es = ElasticSearchController()
+			response_data = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40))				
+			if response_data:
+				for response in response_data:
+					response["comments"] = property_ids_list.get("property_id", "")	
+				args = { "title":"Property Shared by  {0}".format(email) , "property_data":response_data ,"first_name":user_name.get("first_name"), "last_name":user_name.get("last_name")}
+				send_email(request_data.get("email_id"), "Check Out New Properties", "/templates/share_property_template.html", args)
+			else:
+				raise DoesNotExistError("Property Id does not exists in elastic search")
+		except Exception,e:
+			raise e		
