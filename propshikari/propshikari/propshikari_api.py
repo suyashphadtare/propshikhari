@@ -22,15 +22,21 @@ def post_property(data):
 	if data:
 		try:
 			old_data = json.loads(data)
-			putil.validate_for_user_id_exists(old_data.get("user_id"))
+			email = putil.validate_for_user_id_exists(old_data.get("user_id"))
 			data = putil.validate_property_posting_data(old_data,"property_json/property_mapper.json")
-			custom_id = "PROP"  + cstr(int(time.time())) + '-' +  cstr(random.randint(10000,99999))
+			putil.validate_property_status(data.get("status"))
+			custom_id = "PROP-"  + cstr(int(time.time())) + '-' +  cstr(random.randint(10000,99999))
 			data["property_id"] = custom_id
 			meta_dict = add_meta_fields_before_posting(old_data)
 			data.update(meta_dict)
-			property_photo_url_list = store_property_photos_in_propshikari(old_data.get("property_photos"),custom_id)
-			data["property_photos"] = property_photo_url_list
-			data["property_photo"] = property_photo_url_list[1] if property_photo_url_list else ""
+			# return store_property_photos_in_propshikari(old_data.get("property_photos"),custom_id)
+			property_photo_url_dict = store_property_photos_in_propshikari(old_data.get("property_photos"),custom_id)
+			data["full_size_images"] = property_photo_url_dict.get("full_size",[])
+			data["thumbnails"] = property_photo_url_dict.get("thumbnails",[])
+			data["property_photo"] = property_photo_url_dict.get("thumbnails")[0] if len(property_photo_url_dict.get("thumbnails")) else ""
+			data["posted_by"] = old_data.get("user_id")
+			data["user_email"] = email
+			data["posting_date"] = data.get("posting_date") if data.get("posting_date") else data["creation_date"] 
 			es = ElasticSearchController()
 			response_data = es.index_document("property",data, custom_id)
 			response_msg = "Property posted successfully" if response_data.get("created",False) else "Property posting failed" 
@@ -82,7 +88,7 @@ def register_user(data):
 			raise UserAlreadyRegisteredError("User {0} already Registered".format(user_data.get("email")))
 	else:
 		try:
-			user_id = "USR"  + cstr(int(time.time())) + '-' +  cstr(random.randint(1000,9999))
+			user_id = "USR-"  + cstr(int(time.time())) + '-' +  cstr(random.randint(1000,9999))
 			user = frappe.get_doc({
 					"doctype":"User",
 					"email":user_data.get("email"),
@@ -241,14 +247,14 @@ def store_image_to_propshikari(request_data):
 		base64_data = request_data.get("profile_photo").get("file_data").encode("utf8")				
 		base64_data = base64_data.split(',')[1]
 		imgdata = base64.b64decode(base64_data)
-		file_name = "PSUI/" + putil.generate_hash()  +  request_data.get("profile_photo").get("file_ext")
+		file_name = "PSUI-" + cstr(time.time())  + '.' + request_data.get("profile_photo").get("file_ext")
 		with open(frappe.get_site_path("public","files",request_data.get("user_id"),file_name),"wb+") as fi_nm:
 			fi_nm.write(imgdata)
 		file_name = "files/"+request_data.get("user_id")+'/'+file_name
 		frappe.db.set_value(dt="User",dn=user_email, field="user_image", val=file_name)
 		return {"operation":"Update", "message":"Profile Image updated Successfully", "profile_image_url":frappe.request.host_url + file_name, "user_id":request_data.get("user_id")}
 	except Exception,e:		
-	 	raise ImageUploadError("Profile Image updation failed")
+	 	raise ImageUploadError("Profile Image Updation Failed")
 
 
 def store_request_in_elastic_search(property_data,search_query):
@@ -290,7 +296,7 @@ def add_meta_fields_before_posting(property_data):
 
 
 def store_property_photos_in_propshikari(request_data, custom_id):
-	property_url_list = []
+	property_url_dict = {"full_size":[], "thumbnails":[]}
 	size = 400,400
 	if request_data:
 		putil.validate_for_property_photo_fields(request_data)
@@ -309,17 +315,17 @@ def store_property_photos_in_propshikari(request_data, custom_id):
 					fi_nm.write(imgdata)
 				file_name = "files/" + custom_id + "/regular/" + old_file_name
 				regular_image_url = frappe.request.host_url + file_name
-				property_url_list.append(regular_image_url)
+				property_url_dict.get("full_size").append(regular_image_url)
 				
 				thumbnail_file_name = frappe.get_site_path("public","files",custom_id,"thumbnail",old_file_name)
 				im = Image.open(frappe.get_site_path("public","files",custom_id,"regular",old_file_name))
 				im.thumbnail(size, Image.ANTIALIAS)
 				im.save(thumbnail_file_name)
 				thumbnail_file_url = "files/" + custom_id + "/thumbnail/" + old_file_name	
-				property_url_list.append(frappe.request.host_url + thumbnail_file_url)
+				property_url_dict.get("thumbnails").append(frappe.request.host_url + thumbnail_file_url)
 			except Exception,e:
-				raise ImageUploadError("Property Image updation failed")
-	return property_url_list
+				raise ImageUploadError("Image Upload Error")
+	return property_url_dict
 
 
 
@@ -467,19 +473,64 @@ def share_property(request_data):
 		request_data = json.loads(request_data)
 		email = putil.validate_for_user_id_exists(request_data.get("user_id"))
 		user_name = frappe.db.get_value("User", email, ["first_name", "last_name"],as_dict=True)
-		if not request_data.get("comments"):
-			raise MandatoryError("Comments field not found")		
+		putil.validate_property_data(request_data, ["comments", "email_id"])		
 		try:
 			property_ids_list = {  comment.get("property_id"):comment.get("comment","")  for comment in request_data.get("comments") if comment.get("property_id")}
-			search_query = { "query":{ "ids":{ "values":property_ids_list } }  } 
+			search_query = { "query":{ "ids":{ "values":property_ids_list.keys() } }} 
 			es = ElasticSearchController()
 			response_data = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40))				
 			if response_data:
 				for response in response_data:
-					response["comments"] = property_ids_list.get("property_id", "")	
+					response["comments"] = property_ids_list.get(response.get("property_id"),"")
 				args = { "title":"Property Shared by  {0}".format(email) , "property_data":response_data ,"first_name":user_name.get("first_name"), "last_name":user_name.get("last_name")}
-				send_email(request_data.get("email_id"), "Check Out New Properties", "/templates/share_property_template.html", args)
+				send_email(request_data.get("email_id"), "Propshikari properties shared with you", "/templates/share_property_template.html", args)
+				return { "operation":"Share", "message":"Property Shared"}
 			else:
 				raise DoesNotExistError("Property Id does not exists in elastic search")
+		except frappe.OutgoingEmailError:
+			raise OutgoingEmailError("Email can not be sent,Outgoing email error")
 		except Exception,e:
-			raise e		
+			raise OperationFailed("Share Property Operation Failed")
+
+
+
+def get_property_images(request_data):
+	if request_data:
+		request_data = json.loads(request_data)
+		email = putil.validate_for_user_id_exists(request_data.get("user_id"))
+		if not request_data.get("property_id"):
+			raise MandatoryError("Property Id not provided")
+		try:
+			es = ElasticSearchController()
+			response = es.search_document_for_given_id("property",request_data.get("property_id"),[],["full_size_images", "thumbnails"])
+			return { "operation":"Search", "message":"Property Images Found" if response else "Property Images Not Found", "user_id":request_data.get("user_id"), "data":response }
+		except elasticsearch.TransportError:
+			raise DoesNotExistError("Property Id does not exists")
+		except elasticsearch.ElasticsearchException,e:
+			raise ElasticSearchException(e.error)	
+		except Exception,e:
+			raise OperationFailed("Get Property Images Operation Failed")
+
+
+
+def update_property_status(request_data):
+	if request_data:
+		request_data = json.loads(request_data)
+		email = putil.validate_for_user_id_exists(request_data.get("user_id"))
+		putil.validate_property_data(request_data, ["property_id"])
+		putil.validate_property_status(request_data.get("property_status"))	
+		try:
+			search_query = {"doc":{ "status":request_data.get("property_status") }}
+			es = ElasticSearchController()
+			response = es.update_docuemnt("property", request_data.get("property_id"), search_query)
+			return {"operation":"Update" , "message":"User property status changed" if response else "Property Status not changed", "user_id":request_data.get("user_id")}
+		except elasticsearch.TransportError:
+			raise DoesNotExistError("Property Id does not exists")
+		except elasticsearch.ElasticsearchException,e:
+			raise ElasticSearchException(e.error)	
+		except Exception,e:
+			raise OperationFailed("Update Property Status Operation Failed")					
+
+
+
+
