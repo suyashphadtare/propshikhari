@@ -119,6 +119,8 @@ def join_user_with_group_id(request_data):
 		putil.validate_property_data(request_data,["user_id","group_id"])
 		if not frappe.db.get_value("Group",{"name":request_data.get("group_id")},"name"):
 			raise DoesNotExistError("Group ID {0} does not exists".format(request_data.get("group_id")))
+		if frappe.db.get_value("Group User",{"group_id":request_data.get("group_id"), "user_id":request_data.get("user_id")},"name"):
+			raise DuplicateEntryError("Group {0} already joined".format(request_data.get("group_id")))	
 		try:
 			grusr = frappe.new_doc("Group User")	
 			grusr.user_id = request_data.get("user_id")
@@ -127,5 +129,42 @@ def join_user_with_group_id(request_data):
 			grusr.save()
 			return {"operation":"Search", "message":"Group joined"}
 		except Exception,e:
-			return {"operation":"Search", "message":"Group joining Failed"}
-			
+			return {"operation":"Search", "message":"Group joining operation Failed"}
+
+
+
+def shortlist_property(request_data):
+	if request_data:
+		request_data = json.loads(request_data)
+		email = putil.validate_for_user_id_exists(request_data.get("user_id"))
+		if not request_data.get("property_id"):
+			raise MandatoryError("Mandatory Field Property Id missing")
+		if frappe.db.get_value("Shortlisted Property", {"property_id":request_data.get("property_id"), "user_id":request_data.get("user_id")} ,"name"):	
+			raise DuplicateEntryError("Property {0} already Shortlisted".format(request_data.get("property_id")))
+		try:
+			sp_doc = frappe.new_doc("Shortlisted Property")
+			sp_doc.user_id = request_data.get("user_id")
+			sp_doc.property_id = request_data.get("property_id")
+			sp_doc.save()
+			return {"operation":"Create", "message":"Property Shortlisted" ,"property_id":request_data.get("property_id"), "user_id":request_data.get("user_id")}
+		except Exception,e:
+			raise OperationFailed("Shortlist Property Operation Failed")
+
+
+
+def create_feedback(request_data):
+	if request_data:
+		request_data = json.loads(request_data)
+		email = putil.validate_for_user_id_exists(request_data.get("user_id"))
+		putil.validate_property_data(request_data, ["request_type", "feedback"])
+		try:
+			fdbk = frappe.new_doc("Feedback")
+			fdbk.property_id = request_data.get("property_id")
+			fdbk.request_type = request_data.get("request_type")
+			fdbk.user_feedback = request_data.get("feedback")
+			fdbk.user_ratings = request_data.get("ratings") 
+			fdbk.user_id = request_data.get("user_id")
+			fdbk.save()
+			return {"operation":"Create", "message":"Feedback Submitted"}
+		except Exception,e:
+			raise e						

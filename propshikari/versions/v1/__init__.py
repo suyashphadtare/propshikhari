@@ -60,8 +60,8 @@ def get_state_city_location_list(data):
 
 
 
-@frappe.whitelist(allow_guest=True)
-def store_image_to_propshikari(data):
+@frappe.whitelist()
+def update_user_image(data):
 	return api.store_image_to_propshikari(data)
 
 	
@@ -100,6 +100,47 @@ def get_individual_property(data):
 	return api.get_property_of_given_id(data)
 
 
+@frappe.whitelist(allow_guest=True)
+def get_tagged_property(data):
+	return api.get_property_of_particular_tag(data)
+
+
+@frappe.whitelist()
+def get_property_contact(data):
+	return api.get_property_contact(data)
+
+@frappe.whitelist()
+def shortlist_property(data):
+	return masters.shortlist_property(data)
+
+@frappe.whitelist()
+def get_shortlisted_property(data):
+	return api.get_shortlisted_property(data)
+
+
+@frappe.whitelist()
+def get_user_properties(data):		
+	return api.get_user_properties(data)
+
+
+@frappe.whitelist()
+def share_property(data):
+	return api.share_property(data)
+
+
+@frappe.whitelist()
+def get_property_images(data):		
+	return api.get_property_images(data)
+
+
+@frappe.whitelist()
+def update_property_status(data):
+	return api.update_property_status(data)
+
+
+@frappe.whitelist()
+def report_feedback(data):
+	return masters.create_feedback(data)	
 
 
 

@@ -1,0 +1,36 @@
+<html>
+<head>
+<link rel="stylesheet" type="text/css" href="/templates/share_property.css">
+</head>
+<body>
+<h4>{{ title }}</h4>
+<p>{{_("Dear  Customer")}},</p>
+<p>{{_(" Following are the properties which are shared by")}} {{ first_name }}{% if last_name %} {{ last_name}}{% endif %}.</p>
+<br>
+<table style="border-collapse: collapse;width:100%">
+<tr>
+	<th style=" border: 1px solid black;width:5%">Sr No.</th>
+	<th style=" border: 1px solid black;width:25%">Property Title</th>
+	<th style=" border: 1px solid black;width:15%">Property Type</th>
+	<th style=" border: 1px solid black;width:15%">Location</th>
+	<th style=" border: 1px solid black;width:10%">Area</th>
+	<th style=" border: 1px solid black;width:10%">Price</th>
+	<th style=" border: 1px solid black;width:20%">Comments By {{ first_name }}</th>
+</tr>	
+{% for property in property_data %}
+ <tr >
+ 	<td style=" border: 1px solid black;text-align:center">{{ loop.index }}</td>
+ 	<td style=" border: 1px solid black;">{{ property.get("property_title") }}</td>
+ 	<td style=" border: 1px solid black;text-align:center">{{  property.get("property_type") }}</td>
+ 	<td style=" border: 1px solid black;text-align:center">{{ property.get("location") }}</td>
+ 	<td style=" border: 1px solid black;text-align:center">{{ property.get("price") }}</td>
+ 	<td style=" border: 1px solid black;text-align:center">{{ property.get("carpet_area") }}</td>
+ 	<td style=" border: 1px solid black;">{{ property.get("comments") }}</td>
+ </tr>	
+{% endfor %}
+</table>
+<br>
+<br>
+<p>{{_("Thank you")}}.</p>
+</body>
+</html>

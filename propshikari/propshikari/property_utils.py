@@ -106,4 +106,13 @@ def validate_for_property_photo_fields(request_data):
 		if not property_photo.get("file_data"):
 			raise MandatoryError("File data not found in property photo")
 		if not property_photo.get("file_ext"):
-			raise MandatoryError("File extension not found in property photo")		
+			raise MandatoryError("File extension not found in property photo")
+
+
+def validate_property_status(status):
+	if not status:
+		raise MandatoryError("Property Status Not found")	
+	else:
+		if status not in ["Deactivated" ,"Active", "Sold"]:
+			raise InvalidDataError("Invalid input of property status field")
+

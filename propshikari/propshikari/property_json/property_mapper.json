@@ -27,10 +27,6 @@
     "is_mandatory": true,
     "field_type": "number"
   },
-  "property_photos": {
-    "is_mandatory": false,
-    "field_type": "list"
-  },
   "amenities": {
     "is_mandatory": false,
     "field_type": "nested"
