@@ -140,7 +140,24 @@ def update_property_status(data):
 
 @frappe.whitelist()
 def report_feedback(data):
-	return masters.create_feedback(data)	
+	return masters.create_feedback(data)
+
+
+@frappe.whitelist()
+def get_similar_properties(data):
+	return api.get_similar_properties(data)
+
+
+@frappe.whitelist()
+def set_alert(data):
+	return masters.create_alerts(data)
+
+
+@frappe.whitelist()
+def get_alerts(data):
+	return api.get_alerts(data)	
+
+
 
 
 

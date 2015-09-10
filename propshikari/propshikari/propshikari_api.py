@@ -2,10 +2,10 @@ from __future__ import unicode_literals
 import frappe
 from frappe.utils import cstr, cint
 from elastic_controller import ElasticSearchController
-from frappe.utils import add_days, getdate, now, nowdate ,random_string
+from frappe.utils import add_days, getdate, now, nowdate ,random_string ,add_months
 from frappe.auth import _update_password
 import property_utils as putil
-import json
+import json ,ast
 import time
 import random
 from collections import OrderedDict
@@ -184,9 +184,11 @@ def get_user_profile(data):
 		if user_data.get("user_image"):
 			user_data["user_image"] = frappe.request.host_url + user_data.get("user_image")
 		user_data["city"] = frappe.db.get_value("City",user_data["city"],"city_name") or ""
-		user_data["area"] = frappe.db.get_value("Area",user_data["area"],"area") or ""
+		user_data["location"] = frappe.db.get_value("Area",user_data["area"],"area") or ""
+		user_data["geo_location_lat"] = user_data.get("lattitude")
+		user_data["geo_location_lon"] = user_data.get("longitude")
 		return {"operation":"Search", "message":"Profile Found", "data":user_data, "user_id":request_data.get("user_id")}	
-	except Exception:
+	except Exception,e:
 		raise GetUserProfileOperationFailed("User Profile Operation failed")	
 
 
@@ -299,12 +301,12 @@ def add_meta_fields_before_posting(property_data):
 	new_datetime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 	new_date = datetime.datetime.now().strftime("%d-%m-%Y")
 	return {
-	"created_by":property_data.get("user_id"),
-	"modified_by":property_data.get("user_id"),
-	"creation_date":new_date,
-	"modified_date":new_date,
-	"modified_datetime":new_datetime,
-	"posted_datetime":new_datetime
+		"created_by":property_data.get("user_id"),
+		"modified_by":property_data.get("user_id"),
+		"creation_date":new_date,
+		"modified_date":new_date,
+		"modified_datetime":new_datetime,
+		"posted_datetime":new_datetime
 	}
 
 
@@ -348,17 +350,17 @@ def search_group_with_given_criteria(request_data):
 	if request_data:
 		request_data = json.loads(request_data)
 		email = putil.validate_for_user_id_exists(request_data.get("user_id"))
-		es = ElasticSearchController()
-		response = es.search_document_for_given_id("request",request_data.get("request_id"))			
-		if not response:
-			raise DoesNotExistError("Request Id Does Not Exists")
 		try:
+			es = ElasticSearchController()
+			response = es.search_document_for_given_id("request",request_data.get("request_id"))
 			group_search_conditions = make_conditions_for_group_search(response)
 			group_result = frappe.db.sql(""" select  name as group_id, operation, property_type , property_sub_type, property_type_option ,location, min_budget, max_budget, min_area, max_area  from `tabGroup` {0} """.format(group_search_conditions),as_dict=True)
 			for group in group_result:
 				join_flag = frappe.db.get_value("Group User" , {"group_id":group.get("group_id"), "user_id":request_data.get("user_id")},"name")
 				group["user_joined"] = 1 if join_flag else 0
 			return {"operation":"Search", "request_id":request_data.get("request_id"), "data":group_result, "message":"Matching Groups Found" if len(group_result) else "Group Not Found" }
+		except elasticsearch.TransportError:
+			raise DoesNotExistError("Request Id does not exists")
 		except Exception,e:
 			return SearchGroupOperationFailed("Search Group Operation Failed")
 
@@ -477,9 +479,6 @@ def get_user_properties(request_data):
 
 
 
-def get_alerts():
-	pass
-
 
 
 def share_property(request_data):
@@ -543,7 +542,104 @@ def update_property_status(request_data):
 		except elasticsearch.ElasticsearchException,e:
 			raise ElasticSearchException(e.error)	
 		except Exception,e:
-			raise OperationFailed("Update Property Status Operation Failed")					
+			raise OperationFailed("Update Property Status Operation Failed")
+
+
+
+def get_similar_properties(request_data):
+	if request_data:
+		request_data = json.loads(request_data)
+		email = putil.validate_for_user_id_exists(request_data.get("user_id"))
+		putil.validate_property_data(request_data, ["request_type", "id"])
+		search_dict = {"property_id":get_search_query_of_property_id ,"request_id":get_search_query_of_request_id}
+		search_query = search_dict.get(request_data.get("request_type"))(request_data)
+		try:
+			es = ElasticSearchController()
+			response_data = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40))
+			from_record =  ((request_data.get("page_number",1) - 1) * cint(request_data.get("records_per_page",40)) + 1 ) if response_data else 0
+			response_msg = "Similar Property Found" if response_data else "Similar property not found"
+			return {"operation":"Search", "message":response_msg ,"total_records":len(response_data),"records_per_page":request_data.get("records_per_page",40),"from_record":from_record ,"to_record": from_record +  len(response_data) - 1 if response_data else 0 ,"data":response_data, "user_id":request_data.get("user_id")}
+		except elasticsearch.ElasticsearchException,e:
+			raise ElasticSearchException(e.error)
+		except Exception,e:
+			raise OperationFailed("Get Similar property Operation Failed")	 
+
+
+def get_search_query_of_property_id(request_data):
+	try:
+		es = ElasticSearchController()
+		response = es.search_document_for_given_id("property",request_data.get("id"))		
+		search_query = putil.generate_search_query_from_property_data(response)
+		return search_query
+	except elasticsearch.TransportError:
+		raise DoesNotExistError("Property Id does not exists")
+	except elasticsearch.ElasticsearchException,e:
+		raise ElasticSearchException(e.error)	
+
+
+def get_search_query_of_request_id(request_data):
+	try:
+		es = ElasticSearchController()
+		response = es.search_document_for_given_id("request",request_data.get("id"),[],["search_query"])
+		search_query = ast.literal_eval(response.get("search_query").encode("utf8"))
+		return search_query
+	except elasticsearch.TransportError:
+		raise DoesNotExistError("Request Id does not exists")
+	except elasticsearch.ElasticsearchException,e:
+		raise ElasticSearchException(e.error)		
+		
+
+def get_alerts(request_data):
+	if request_data:
+		request_data = json.loads(request_data)
+		email = putil.validate_for_user_id_exists(request_data.get("user_id"))
+		alert = frappe.db.sql("select * from `tabAlerts` where user_id='{0}' order by creation desc limit 1".format(request_data.get("user_id")),as_dict=1)
+		try:
+			if alert:
+				property_search_query = putil.generate_search_query(alert[0])
+				new_query = property_search_query.get("query").get("bool").get("must")
+				new_query.append({
+								    "range" : {
+								        "posted_datetime" : {
+								            "gte": alert[0].get("creation").strftime("%Y-%m-%d %H:%M:%S"),
+								        }
+								    }
+								})
+				property_search_query["query"]["bool"]["must"] = new_query
+			else:
+				search_query = {	
+									"sort": [{ "posted_datetime": { "order": "desc" }}],
+									"query":{ "bool":{ "must":[ {"match":{ "user_id":request_data.get("user_id")  } } ] }    } 
+								}						
+				es = ElasticSearchController()
+				response_data = es.search_document(["request"], search_query, 1, 1)
+				if response_data:
+					last_month_date = add_months(datetime.datetime.now() ,-1).strftime("%Y-%m-%d %H:%M:%S")
+					property_search_query = response_data[0].get("search_query")
+					property_search_query = ast.literal_eval(property_search_query.encode("utf8"))
+					new_query = property_search_query.get("query").get("bool").get("must")
+					new_query.append({
+										    "range" : {
+										        "posted_datetime" : {
+										            "gte":last_month_date,
+										        }
+										    }
+										})
+					property_search_query["query"]["bool"]["must"] = new_query
+				else:
+					raise OperationFailed("No Alerts and Request Id found against User {0}".format(email))
+			es = ElasticSearchController()
+			response_data = es.search_document(["property"], property_search_query, request_data.get("page_number",1), request_data.get("records_per_page",40))
+			from_record =  ((request_data.get("page_number",1) - 1) * cint(request_data.get("records_per_page",40)) + 1 ) if response_data else 0
+			response_msg = "Property Found" if response_data else "Property not found"
+			return {"operation":"Search", "message":response_msg ,"total_records":len(response_data),"records_per_page":request_data.get("records_per_page",40),"from_record":from_record ,"to_record": from_record +  len(response_data) - 1 if response_data else 0 ,"data":response_data, "user_id":request_data.get("user_id")}
+		except elasticsearch.ElasticsearchException,e:
+			raise ElasticSearchException(e.error)
+		except Exception,e:
+			raise e					
+
+
+
 
 
 
