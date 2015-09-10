@@ -23,6 +23,7 @@ def post_property(data):
 		try:
 			old_data = json.loads(data)
 			email = putil.validate_for_user_id_exists(old_data.get("user_id"))
+			subs_doc = putil.validate_for_postings_available(email)
 			data = putil.validate_property_posting_data(old_data,"property_json/property_mapper.json")
 			putil.validate_property_status(data.get("status"))
 			custom_id = "PROP-"  + cstr(int(time.time())) + '-' +  cstr(random.randint(10000,99999))
@@ -39,8 +40,12 @@ def post_property(data):
 			data["posting_date"] = data.get("posting_date") if data.get("posting_date") else data["creation_date"] 
 			es = ElasticSearchController()
 			response_data = es.index_document("property",data, custom_id)
+			if subs_doc and response_data.get("created"):
+				subs_doc.posted = cint(subs_doc.posted) + 1
+				subs_doc.save(ignore_permissions=True)
+			subscription = putil.get_subscriptions(email)
 			response_msg = "Property posted successfully" if response_data.get("created",False) else "Property posting failed" 
-			return {"operation":"Create", "message":response_msg, "property_id":response_data.get("_id"), "user_id":old_data.get("user_id")}	
+			return {"operation":"Create", "message":response_msg, "property_id":response_data.get("_id"), "user_id":old_data.get("user_id"),"data":{"subscriptions":subscription}}	
 		except elasticsearch.RequestError,e:
 			raise ElasticInvalidInputFormatError(e.error)
 		except elasticsearch.ElasticsearchException,e:
@@ -107,16 +112,25 @@ def register_user(data):
 			user.flags.ignore_permissions = True
 			user.insert()
 			args = { "title":"Welcome to Propshikari", "first_name":user_data.get("first_name"), "last_name":user_data.get("last_name"), "user":user_data.get("email"), "password":user_data.get("password") }
+			manage_subscription(user)
 			send_email(user_data.get("email"), "Welcome to Propshikari", "/templates/new_user_template.html", args)
 			return {"operation":"create", "message":"User Registration done Successfully", "user_id":user_id}
+
 		except frappe.OutgoingEmailError:
 			frappe.response["user_id"] = user_id
 			raise OutgoingEmailError("User registered successfully but email not sent.")
 		except Exception,e:
 			raise UserRegisterationError("User Registration Failed")		
 
-
-
+def manage_subscription(user):
+	"""Add default Subscription for user to post post properties"""
+	subs_doc = frappe.get_doc({
+			"doctype":"User Subscription",
+			"user":user.name
+		})
+	subs_doc.flags.ignore_permissions = True
+	subs_doc.insert()
+	return "Done"
 
 def forgot_password(data):	
 	user_data = json.loads(data)
@@ -171,6 +185,8 @@ def get_user_profile(data):
 			user_data["user_image"] = frappe.request.host_url + user_data.get("user_image")
 		user_data["city"] = frappe.db.get_value("City",user_data["city"],"city_name") or ""
 		user_data["location"] = frappe.db.get_value("Area",user_data["area"],"area") or ""
+		user_data["geo_location_lat"] = user_data,get("lattitude")
+		user_data["geo_location_lon"] = user_data.get("longitude")
 		return {"operation":"Search", "message":"Profile Found", "data":user_data, "user_id":request_data.get("user_id")}	
 	except Exception:
 		raise GetUserProfileOperationFailed("User Profile Operation failed")	

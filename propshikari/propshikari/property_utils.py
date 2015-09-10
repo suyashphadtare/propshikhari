@@ -4,6 +4,7 @@ import os
 import time
 import json
 from api_handler.api_handler.exceptions import *
+from frappe.utils import cstr, cint
 
 
 
@@ -118,6 +119,7 @@ def validate_property_status(status):
 
 
 
+
 def generate_search_query_from_property_data(property_data):
 
 	""" 
@@ -133,3 +135,23 @@ def generate_search_query_from_property_data(property_data):
 	search_query = { "query":{ "bool":{ "must":must_clause_list } } }
 	return search_query				
 
+
+def validate_for_postings_available(email):
+	subs_name = frappe.db.get_value("User Subscription",{"user":email},"name")
+	if subs_name:
+		subs_doc = frappe.get_doc("User Subscription",subs_name)
+		remaining = cint(subs_doc.allowed) - cint(subs_doc.posted)
+		if remaining == 0:
+			raise ValidationError("Posting Limit Exhausted")
+		else:
+			return subs_doc					 
+
+def get_subscriptions(user):
+	subs_dic = {}
+	subs_name = frappe.db.get_value("User Subscription",{"user":user},"name")
+	if subs_name:
+		subs_doc = frappe.get_doc("User Subscription",subs_name)
+		subs_dic["posting_allowed"] = cint(subs_doc.allowed)
+		subs_dic["total_posted"] = cint(subs_doc.posted) or 0
+		subs_dic["posting_available"] = cint(subs_doc.allowed) - cint(subs_doc.posted)
+	return subs_dic
