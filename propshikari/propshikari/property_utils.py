@@ -39,7 +39,7 @@ def generate_search_query(property_data):
 	if range_dict:
 		range_list = [ {"range": {range_key:range_value} } for range_key,range_value in range_dict.items() ]
 		must_clause_list.extend(range_list)
-	search_query = { "query":{ "bool":{ "must":must_clause_list } } }
+	search_query = { "query":{ "bool":{ "must":must_clause_list } }, "sort": [{ "posted_datetime": { "order": "desc" }}] }
 	return search_query	
 
 def get_range_query(key,value,request_data):
@@ -115,4 +115,21 @@ def validate_property_status(status):
 	else:
 		if status not in ["Deactivated" ,"Active", "Sold"]:
 			raise InvalidDataError("Invalid input of property status field")
+
+
+
+def generate_search_query_from_property_data(property_data):
+
+	""" 
+        Generate search query for get similar property from given sets of criteria 
+        like property-type, property_subtype, budget, area etc.
+
+	"""
+
+	property_field_dict = {"operation":"operation", "property_type":"property_type", "property_subtype":"property_subtype", "location":"location", "property_subtype_option":"property_subtype_option"}
+	must_clause_list = [ {"match":{ property_field : property_data.get(request_field) } } for request_field,property_field in property_field_dict.items() if property_data.get(request_field,False)]
+	range_list = range_list = [ {"range": {range_key:{"lte":property_data.get(range_key)}} } for range_key in ["carpet_area","price"] if property_data.get(range_key,False)]
+	must_clause_list.extend(range_list)
+	search_query = { "query":{ "bool":{ "must":must_clause_list } } }
+	return search_query				
 

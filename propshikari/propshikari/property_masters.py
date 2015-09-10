@@ -107,6 +107,8 @@ def create_group_in_hunterscamp(request_data):
 			gr_doc.unit_of_area = request_data.get("unit_of_area")
 			gr_doc.save()
 			return {"operation":"Create", "group_id":gr_doc.name, "message":"Group Created"}
+		except frappe.MandatoryError,e:
+			raise MandatoryError("Mandatory Field {0} missing".format(e.message))
 		except Exception,e:
 			return {"operation":"Create", "message":"Group not created"}
 
@@ -167,4 +169,34 @@ def create_feedback(request_data):
 			fdbk.save()
 			return {"operation":"Create", "message":"Feedback Submitted"}
 		except Exception,e:
-			raise e						
+			raise e
+
+
+
+def create_alerts(request_data):
+	request_data = json.loads(request_data)
+	putil.validate_for_user_id_exists(request_data.get("user_id"))
+	try:
+		alrt = frappe.new_doc("Alerts")
+		alrt.alert_title = request_data.get("alert_title")
+		alrt.operation = request_data.get("operation")
+		alrt.property_type =  request_data.get("property_type")
+		alrt.property_subtype = request_data.get("property_sub_type")
+		alrt.location = request_data.get("location")
+		alrt.property_subtype_option = request_data.get("property_subtype_option")
+		alrt.creation_via  = "Website"
+		alrt.min_area = request_data.get("min_area",0)
+		alrt.max_area = request_data.get("max_area",0)
+		alrt.min_budget = request_data.get("min_budget",0)
+		alrt.max_budget = request_data.get("max_budget",0)
+		alrt.unit_of_area = request_data.get("unit_of_area")
+		alrt.user_id = request_data.get("user_id")
+		alrt.save()
+		return {"operation":"Create", "alert_id":alrt.name, "message":"Alert Created"}
+	except frappe.MandatoryError,e:
+		raise MandatoryError("Mandatory Field {0} missing".format(e.message))
+	except (frappe.LinkValidationError, frappe.ValidationError)  as e:
+		raise InvalidDataError(e.message)
+	except Exception,e:
+		return {"operation":"Create", "message":"Alert not created"}
+
