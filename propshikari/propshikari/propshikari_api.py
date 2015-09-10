@@ -185,10 +185,10 @@ def get_user_profile(data):
 			user_data["user_image"] = frappe.request.host_url + user_data.get("user_image")
 		user_data["city"] = frappe.db.get_value("City",user_data["city"],"city_name") or ""
 		user_data["location"] = frappe.db.get_value("Area",user_data["area"],"area") or ""
-		user_data["geo_location_lat"] = user_data,get("lattitude")
+		user_data["geo_location_lat"] = user_data.get("lattitude")
 		user_data["geo_location_lon"] = user_data.get("longitude")
 		return {"operation":"Search", "message":"Profile Found", "data":user_data, "user_id":request_data.get("user_id")}	
-	except Exception:
+	except Exception,e:
 		raise GetUserProfileOperationFailed("User Profile Operation failed")	
 
 
