@@ -25,9 +25,10 @@ class ElasticSearchController():
 			Search document in given type_list for given search criteria 
 	   		with no of records to be returned.
 		"""		
-		
+
 		response = self.es.search(index=["propshikari"], doc_type=type_list, body=search_body, from_=(page_no - 1) * no_of_records, size=no_of_records)
-		return [response["_source"] for response in response["hits"]["hits"]]
+		total_records = response["hits"]["total"]
+		return [response["_source"] for response in response["hits"]["hits"]] , total_records
 
 
 	

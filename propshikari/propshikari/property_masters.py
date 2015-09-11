@@ -96,7 +96,7 @@ def create_group_in_hunterscamp(request_data):
 			gr_doc.group_title = request_data.get("group_title")
 			gr_doc.operation = request_data.get("operation")
 			gr_doc.property_type =  request_data.get("property_type")
-			gr_doc.property_sub_type = request_data.get("property_sub_type")
+			gr_doc.property_sub_type = request_data.get("property_subtype")
 			gr_doc.location = request_data.get("location")
 			gr_doc.property_type_option = request_data.get("property_subtype_option")
 			gr_doc.creation_via  = "Website"
@@ -109,6 +109,8 @@ def create_group_in_hunterscamp(request_data):
 			return {"operation":"Create", "group_id":gr_doc.name, "message":"Group Created"}
 		except frappe.MandatoryError,e:
 			raise MandatoryError("Mandatory Field {0} missing".format(e.message))
+		except (frappe.LinkValidationError, frappe.ValidationError)  as e:
+			raise InvalidDataError(e.message)
 		except Exception,e:
 			return {"operation":"Create", "message":"Group not created"}
 
@@ -168,6 +170,10 @@ def create_feedback(request_data):
 			fdbk.user_id = request_data.get("user_id")
 			fdbk.save()
 			return {"operation":"Create", "message":"Feedback Submitted"}
+		except frappe.MandatoryError,e:
+			raise MandatoryError("Mandatory Field {0} missing".format(e.message))
+		except (frappe.LinkValidationError, frappe.ValidationError)  as e:
+			raise InvalidDataError(e.message)
 		except Exception,e:
 			raise e
 

@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 import api_handler
 import propshikari.propshikari.propshikari_api as api
 import propshikari.propshikari.property_masters as masters
+import propshikari.propshikari.project_api as projt
 from frappe.utils import cstr, cint
 import frappe
 import time
@@ -155,7 +156,12 @@ def set_alert(data):
 
 @frappe.whitelist()
 def get_alerts(data):
-	return api.get_alerts(data)	
+	return api.get_alerts(data)
+
+
+@frappe.whitelist()
+def get_project_details(data):
+	return projt.get_project_of_given_id(data)		
 
 
 

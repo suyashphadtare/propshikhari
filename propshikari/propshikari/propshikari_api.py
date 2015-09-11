@@ -62,11 +62,11 @@ def search_property(data):
 			property_data = putil.validate_property_posting_data(old_property_data,"property_json/property_search.json")
 			search_query = putil.generate_search_query(property_data)
 			es = ElasticSearchController()
-			response_data = es.search_document(["property"], search_query, old_property_data.get("page_number",1), old_property_data.get("records_per_page",40))
+			response_data, total_records = es.search_document(["property"], search_query, old_property_data.get("page_number",1), old_property_data.get("records_per_page",40))
 			request_id = store_request_in_elastic_search(old_property_data,search_query)
 			response_msg = "Property found for specfied criteria" if len(response_data) else "Property not found"
-			from_record = (old_property_data.get("page_number",1) - 1) * cint(old_property_data.get("records_per_page",40))
-			return {"operation":"Search", "message":response_msg ,"total_records":len(response_data), "request_id":request_id, "records_per_page":old_property_data.get("records_per_page",40),"from_record":from_record ,"to_record": from_record +  len(response_data) ,"data":response_data, "user_id":old_property_data.get("user_id")}
+			from_record = (old_property_data.get("page_number",1) - 1) * cint(old_property_data.get("records_per_page",40)) + 1
+			return {"operation":"Search", "message":response_msg ,"total_records":total_records, "request_id":request_id, "records_per_page":old_property_data.get("records_per_page",40),"from_record":from_record ,"to_record":from_record +  len(response_data) - 1 if response_data else from_record + request_data.get("records_per_page",40) - 1,"data":response_data, "user_id":old_property_data.get("user_id")}
 		except elasticsearch.RequestError,e:
 			raise ElasticInvalidInputFormatError(e.error)
 		except elasticsearch.ElasticsearchException,e:
@@ -407,10 +407,10 @@ def get_property_of_particular_tag(request_data):
 		try:
 			search_query = { "query":{ "match":{ "tag":request_data.get("tag") } }  } 
 			es = ElasticSearchController()
-			response_data = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40))	
+			response_data, total_records = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40))	
 			response_msg = "Property found for specfied criteria" if len(response_data) else "Property not found"
-			from_record = (request_data.get("page_number",1) - 1) * cint(request_data.get("records_per_page",40))
-			return {"operation":"Search", "message":response_msg ,"total_records":len(response_data), "records_per_page":request_data.get("records_per_page",40),"from_record":from_record ,"to_record": from_record +  len(response_data) ,"data":response_data, "user_id":request_data.get("user_id"), "tag":request_data.get("tag")}
+			from_record = (request_data.get("page_number",1) - 1) * cint(request_data.get("records_per_page",40)) + 1
+			return {"operation":"Search", "message":response_msg ,"total_records":total_records, "records_per_page":request_data.get("records_per_page",40),"from_record":from_record ,"to_record": from_record +  len(response_data) - 1 if response_data else from_record + request_data.get("records_per_page",40) - 1,"data":response_data, "user_id":request_data.get("user_id"), "tag":request_data.get("tag")}
 		except elasticsearch.ElasticsearchException,e:
 			raise ElasticSearchException(e.error)
 		except Exception,e:
@@ -446,14 +446,14 @@ def get_shortlisted_property(request_data):
 		try:
 			search_query = { "query":{ "ids":{ "values":property_ids_list } }  } 
 			es = ElasticSearchController()
-			response_data = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40))	
+			response_data, total_records = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40))	
 			for response in response_data:
 				new_list = response.get("tag",[])
 				new_list.append("Shortlisted")
 				response["tag"] = new_list
 			response_msg = "Shortlisted Property Found" if len(response_data) else "Shortlsited Property not found"
-			from_record = (request_data.get("page_number",1) - 1) * cint(request_data.get("records_per_page",40))
-			return {"operation":"Search", "message":response_msg ,"total_records":len(response_data), "records_per_page":request_data.get("records_per_page",40),"from_record":from_record ,"to_record": from_record +  len(response_data) ,"data":response_data, "user_id":request_data.get("user_id")}
+			from_record = (request_data.get("page_number",1) - 1) * cint(request_data.get("records_per_page",40)) + 1
+			return {"operation":"Search", "message":response_msg ,"total_records":total_records, "records_per_page":request_data.get("records_per_page",40),"from_record":from_record ,"to_record": from_record +  len(response_data) - 1 if response_data else from_record + request_data.get("records_per_page",40) - 1,"data":response_data, "user_id":request_data.get("user_id")}
 		except elasticsearch.ElasticsearchException,e:
 			raise ElasticSearchException(e.error)
 		except Exception,e:
@@ -468,10 +468,10 @@ def get_user_properties(request_data):
 		search_query =  { "query": { "match":{ "posted_by":request_data.get("user_id") } } }
 		try:
 			es = ElasticSearchController()
-			response_data = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40))
+			response_data, total_records  = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40))
 			response_msg = "User Property Found" if len(response_data) else "User Property not found"
-			from_record = (request_data.get("page_number",1) - 1) * cint(request_data.get("records_per_page",40))
-			return {"operation":"Search", "message":response_msg ,"total_records":len(response_data), "records_per_page":request_data.get("records_per_page",40),"from_record":from_record ,"to_record": from_record +  len(response_data) ,"data":response_data, "user_id":request_data.get("user_id")}
+			from_record = (request_data.get("page_number",1) - 1) * cint(request_data.get("records_per_page",40)) + 1 
+			return {"operation":"Search", "message":response_msg ,"total_records":total_records, "records_per_page":request_data.get("records_per_page",40),"from_record":from_record ,"to_record": from_record +  len(response_data) - 1 if response_data else from_record + request_data.get("records_per_page",40) - 1,"data":response_data, "user_id":request_data.get("user_id")}
 		except elasticsearch.ElasticsearchException,e:
 			raise ElasticSearchException(e.error)
 		except Exception,e:
@@ -491,7 +491,7 @@ def share_property(request_data):
 			property_ids_list = {  comment.get("property_id"):comment.get("comment","")  for comment in request_data.get("comments") if comment.get("property_id")}
 			search_query = { "query":{ "ids":{ "values":property_ids_list.keys() } }} 
 			es = ElasticSearchController()
-			response_data = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40))				
+			response_data, total_records = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40))				
 			if response_data:
 				for response in response_data:
 					response["comments"] = property_ids_list.get(response.get("property_id"),"")
@@ -502,8 +502,12 @@ def share_property(request_data):
 				raise DoesNotExistError("Property Id does not exists in elastic search")
 		except frappe.OutgoingEmailError:
 			raise OutgoingEmailError("Email can not be sent,Outgoing email error")
+		except elasticsearch.TransportError:
+			raise DoesNotExistError("Property Id does not exists")
+		except elasticsearch.ElasticsearchException,e:
+			raise ElasticSearchException(e.error)
 		except Exception,e:
-			raise OperationFailed("Share Property Operation Failed")
+			raise e
 
 
 
@@ -552,13 +556,15 @@ def get_similar_properties(request_data):
 		email = putil.validate_for_user_id_exists(request_data.get("user_id"))
 		putil.validate_property_data(request_data, ["request_type", "id"])
 		search_dict = {"property_id":get_search_query_of_property_id ,"request_id":get_search_query_of_request_id}
+		if request_data.get("request_type") not in ["property_id", "request_id"]:
+			raise InvalidDataError("Request type contains Invalid Data")
 		search_query = search_dict.get(request_data.get("request_type"))(request_data)
 		try:
 			es = ElasticSearchController()
-			response_data = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40))
-			from_record =  ((request_data.get("page_number",1) - 1) * cint(request_data.get("records_per_page",40)) + 1 ) if response_data else 0
+			response_data, total_records = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40))
+			from_record =  ((request_data.get("page_number",1) - 1) * cint(request_data.get("records_per_page",40)) + 1 )
 			response_msg = "Similar Property Found" if response_data else "Similar property not found"
-			return {"operation":"Search", "message":response_msg ,"total_records":len(response_data),"records_per_page":request_data.get("records_per_page",40),"from_record":from_record ,"to_record": from_record +  len(response_data) - 1 if response_data else 0 ,"data":response_data, "user_id":request_data.get("user_id")}
+			return {"operation":"Search", "message":response_msg ,"total_records":total_records,"records_per_page":request_data.get("records_per_page",40),"from_record":from_record ,"to_record": from_record +  len(response_data) - 1 if response_data else from_record + request_data.get("records_per_page",40) - 1 ,"data":response_data, "user_id":request_data.get("user_id")}
 		except elasticsearch.ElasticsearchException,e:
 			raise ElasticSearchException(e.error)
 		except Exception,e:
@@ -612,7 +618,7 @@ def get_alerts(request_data):
 									"query":{ "bool":{ "must":[ {"match":{ "user_id":request_data.get("user_id")  } } ] }    } 
 								}						
 				es = ElasticSearchController()
-				response_data = es.search_document(["request"], search_query, 1, 1)
+				response_data, total_records = es.search_document(["request"], search_query, 1, 1)
 				if response_data:
 					last_month_date = add_months(datetime.datetime.now() ,-1).strftime("%Y-%m-%d %H:%M:%S")
 					property_search_query = response_data[0].get("search_query")
@@ -629,10 +635,10 @@ def get_alerts(request_data):
 				else:
 					raise OperationFailed("No Alerts and Request Id found against User {0}".format(email))
 			es = ElasticSearchController()
-			response_data = es.search_document(["property"], property_search_query, request_data.get("page_number",1), request_data.get("records_per_page",40))
-			from_record =  ((request_data.get("page_number",1) - 1) * cint(request_data.get("records_per_page",40)) + 1 ) if response_data else 0
+			response_data, total_records = es.search_document(["property"], property_search_query, request_data.get("page_number",1), request_data.get("records_per_page",40))
+			from_record =  ((request_data.get("page_number",1) - 1) * cint(request_data.get("records_per_page",40)) + 1 )
 			response_msg = "Property Found" if response_data else "Property not found"
-			return {"operation":"Search", "message":response_msg ,"total_records":len(response_data),"records_per_page":request_data.get("records_per_page",40),"from_record":from_record ,"to_record": from_record +  len(response_data) - 1 if response_data else 0 ,"data":response_data, "user_id":request_data.get("user_id")}
+			return {"operation":"Search", "message":response_msg ,"total_records":total_records,"records_per_page":request_data.get("records_per_page",40),"from_record":from_record ,"to_record": from_record +  len(response_data) - 1 if response_data else from_record + request_data.get("records_per_page",40) - 1 ,"data":response_data, "user_id":request_data.get("user_id")}
 		except elasticsearch.ElasticsearchException,e:
 			raise ElasticSearchException(e.error)
 		except Exception,e:
