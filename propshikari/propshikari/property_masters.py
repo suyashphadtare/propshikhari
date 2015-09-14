@@ -187,7 +187,7 @@ def create_alerts(request_data):
 		alrt.alert_title = request_data.get("alert_title")
 		alrt.operation = request_data.get("operation")
 		alrt.property_type =  request_data.get("property_type")
-		alrt.property_subtype = request_data.get("property_sub_type")
+		alrt.property_subtype = request_data.get("property_subtype")
 		alrt.location = request_data.get("location")
 		alrt.property_subtype_option = request_data.get("property_subtype_option")
 		alrt.creation_via  = "Website"
