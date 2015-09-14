@@ -66,7 +66,7 @@ def search_property(data):
 			request_id = store_request_in_elastic_search(old_property_data,search_query)
 			response_msg = "Property found for specfied criteria" if len(response_data) else "Property not found"
 			from_record = (old_property_data.get("page_number",1) - 1) * cint(old_property_data.get("records_per_page",40)) + 1
-			return {"operation":"Search", "message":response_msg ,"total_records":total_records, "request_id":request_id, "records_per_page":old_property_data.get("records_per_page",40),"from_record":from_record ,"to_record":from_record +  len(response_data) - 1 if response_data else from_record + request_data.get("records_per_page",40) - 1,"data":response_data, "user_id":old_property_data.get("user_id")}
+			return {"operation":"Search", "message":response_msg ,"total_records":total_records, "request_id":request_id, "records_per_page":old_property_data.get("records_per_page",40),"from_record":from_record ,"to_record":from_record +  len(response_data) - 1 if response_data else from_record + old_property_data.get("records_per_page",40) - 1,"data":response_data, "user_id":old_property_data.get("user_id")}
 		except elasticsearch.RequestError,e:
 			raise ElasticInvalidInputFormatError(e.error)
 		except elasticsearch.ElasticsearchException,e:
