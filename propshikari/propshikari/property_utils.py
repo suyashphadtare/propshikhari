@@ -4,7 +4,9 @@ import os
 import time
 import json
 from api_handler.api_handler.exceptions import *
-from frappe.utils import cstr, cint
+from frappe.utils import cstr, cint, date_diff
+from dateutil import relativedelta
+from datetime import datetime
 
 
 
@@ -28,9 +30,11 @@ def generate_search_query(property_data):
         like property-type, property_subtype, budget, area etc.
 
 	"""
+	
 
 	property_field_dict = {"operation":"operation", "property_type":"property_type", "property_subtype":"property_subtype", "location":"location", "property_subtype_option":"property_subtype_option"}
 	must_clause_list = [ {"match":{ property_field : property_data.get(request_field) } } for request_field,property_field in property_field_dict.items() if property_data.get(request_field,False)]
+	must_clause_list.append({"match":{ "status": "Active" } })
 	range_field_dict = { "carpet_area":["min_area", "max_area"], "price" :["min_budget", "max_budget"] }
 	range_dict = {}
 	for key,value in range_field_dict.items():
@@ -128,8 +132,10 @@ def generate_search_query_from_property_data(property_data):
 
 	"""
 
+	
 	property_field_dict = {"operation":"operation", "property_type":"property_type", "property_subtype":"property_subtype", "location":"location", "property_subtype_option":"property_subtype_option"}
 	must_clause_list = [ {"match":{ property_field : property_data.get(request_field) } } for request_field,property_field in property_field_dict.items() if property_data.get(request_field,False)]
+	must_clause_list.append({"match":{ "status": "Active" } })
 	range_list = range_list = [ {"range": {range_key:{"lte":property_data.get(range_key)}} } for range_key in ["carpet_area","price"] if property_data.get(range_key,False)]
 	must_clause_list.extend(range_list)
 	search_query = { "query":{ "bool":{ "must":must_clause_list } } }
@@ -155,3 +161,42 @@ def get_subscriptions(user):
 		subs_dic["total_posted"] = cint(subs_doc.posted) or 0
 		subs_dic["posting_available"] = cint(subs_doc.allowed) - cint(subs_doc.posted)
 	return subs_dic
+
+
+
+def prepare_amenities_data(amenities_data):
+	amenities = []
+	for amenity in amenities_data:
+		amenity_dict = {}
+		amenity_dict["status"] = "Yes"
+		amenity_dict["name"] = amenity
+		amenity_dict["image"] = ""
+		amenities.append(amenity_dict)
+	return amenities	 
+
+
+def get_date_diff_from_posting(response_data):
+	for response in response_data:
+		current_date = datetime.now()
+		posting_date = datetime.strptime(response.get("posting_date"), "%d-%m-%Y")
+		r = relativedelta.relativedelta(current_date, posting_date) 
+		if r.years:
+			response["elapsed_time"] = "{0} year ago".format(r.years)
+		elif r.months:
+			response["elapsed_time"] = "{0} month ago".format(r.months)
+		elif r.days:
+			response["elapsed_time"] = "{0} days ago".format(r.days)
+	return response_data
+
+
+def isolate_city_from_location(property_data):
+	if property_data.get("location"):
+		location_city_list = property_data.get("location").split(',')
+		if location_city_list == 2: 
+			property_data["location"] = location_city_list[0]
+			property_data["city"] = location_city_list[1]
+		else:
+			raise InvalidDataError("Invalid Input of Location Field")
+
+
+

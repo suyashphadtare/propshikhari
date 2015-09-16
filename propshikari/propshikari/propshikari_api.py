@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 import frappe
 from frappe.utils import cstr, cint
 from elastic_controller import ElasticSearchController
-from frappe.utils import add_days, getdate, now, nowdate ,random_string ,add_months
+from frappe.utils import add_days, getdate, now, nowdate ,random_string ,add_months, date_diff 
 from frappe.auth import _update_password
 import property_utils as putil
 import json ,ast
@@ -37,7 +37,9 @@ def post_property(data):
 			data["property_photo"] = property_photo_url_dict.get("thumbnails")[0] if len(property_photo_url_dict.get("thumbnails")) else ""
 			data["posted_by"] = old_data.get("user_id")
 			data["user_email"] = email
-			data["posting_date"] = data.get("posting_date") if data.get("posting_date") else data["creation_date"] 
+			data["posting_date"] = data.get("posting_date") if data.get("posting_date") else data["creation_date"]
+			data["amenities"] = putil.prepare_amenities_data(data.get("amenities"))
+			data["flat_facilities"] = putil.prepare_amenities_data(data.get("flat_facilities"))
 			es = ElasticSearchController()
 			response_data = es.index_document("property",data, custom_id)
 			if subs_doc and response_data.get("created"):
@@ -64,6 +66,9 @@ def search_property(data):
 			es = ElasticSearchController()
 			response_data, total_records = es.search_document(["property"], search_query, old_property_data.get("page_number",1), old_property_data.get("records_per_page",40))
 			request_id = store_request_in_elastic_search(old_property_data,search_query)
+			if old_property_data.get("user_id") != "Guest":				
+				response_data = check_for_shortlisted_property(response_data,old_property_data.get("user_id"))
+			response_data = putil.get_date_diff_from_posting(response_data)
 			response_msg = "Property found for specfied criteria" if len(response_data) else "Property not found"
 			from_record = (old_property_data.get("page_number",1) - 1) * cint(old_property_data.get("records_per_page",40)) + 1
 			return {"operation":"Search", "message":response_msg ,"total_records":total_records, "request_id":request_id, "records_per_page":old_property_data.get("records_per_page",40),"from_record":from_record ,"to_record":from_record +  len(response_data) - 1 if response_data else from_record + old_property_data.get("records_per_page",40) - 1,"data":response_data, "user_id":old_property_data.get("user_id")}
@@ -77,146 +82,8 @@ def search_property(data):
 
 @frappe.whitelist(allow_guest=True)
 def check_connection():
-	import os
-	return "successs"
+	return dir()
 
-
-
-def register_user(data):
-	user_data = json.loads(data)
-	user = frappe.db.get("User", {"email": user_data.get("email")})
-	putil.validate_property_data(user_data,["email","first_name","mobile_number","password","access_type"])
-	if user:
-		if user.disabled:
-			raise UserRegisteredButDisabledError("User {0} Registered but disabled".format(user_data.get("email")))
-		else:
-			raise UserAlreadyRegisteredError("User {0} already Registered".format(user_data.get("email")))
-	else:
-		try:
-			user_id = "USR-"  + cstr(int(time.time())) + '-' +  cstr(random.randint(1000,9999))
-			user = frappe.get_doc({
-					"doctype":"User",
-					"email":user_data.get("email"),
-					"first_name": user_data.get("first_name"),
-					"enabled": 1,
-					"last_name": user_data.get("last_name"),
-					"new_password": user_data.get("password"),
-					"user_id": user_id,
-					"mobile_no":  user_data.get("mobile_number"),
-					"access_type" :user_data.get("access_type"),
-					"user_type": "Website User",
-					"user_image":"assets/propshikari/default_user.gif",
-					"send_welcome_email":0
-				})
-
-			user.flags.ignore_permissions = True
-			user.insert()
-			args = { "title":"Welcome to Propshikari", "first_name":user_data.get("first_name"), "last_name":user_data.get("last_name"), "user":user_data.get("email"), "password":user_data.get("password") }
-			manage_subscription(user)
-			send_email(user_data.get("email"), "Welcome to Propshikari", "/templates/new_user_template.html", args)
-			return {"operation":"create", "message":"User Registration done Successfully", "user_id":user_id}
-
-		except frappe.OutgoingEmailError:
-			frappe.response["user_id"] = user_id
-			raise OutgoingEmailError("User registered successfully but email not sent.")
-		except Exception,e:
-			raise UserRegisterationError("User Registration Failed")		
-
-def manage_subscription(user):
-	"""Add default Subscription for user to post post properties"""
-	subs_doc = frappe.get_doc({
-			"doctype":"User Subscription",
-			"user":user.name
-		})
-	subs_doc.flags.ignore_permissions = True
-	subs_doc.insert()
-	return "Done"
-
-def forgot_password(data):	
-	user_data = json.loads(data)
-	user_info = frappe.db.get("User", {"email": user_data.get("email")})
-	if not user_info:
-		raise DoesNotExistError("Email id does not exists")
-	else:
-		try:
-			new_password = cstr(random.randint(1000000000,9999999999))
-			_update_password(user_data.get("email"), new_password)
-			args = {"first_name":user_info.get("first_name"), "new_password":new_password, "last_name":user_info.get("last_name")}
-			send_email( user_data.get("email"), "Password Update Notification", "/templates/password_update.html", args)
-			return {"operation":"Password Update", "message":"Password updated successfully"}
-		except frappe.OutgoingEmailError:
-			raise OutgoingEmailError("Password Updated successfully but email not sent.")
-		except Exception:	
-			raise ForgotPasswordOperationFailed("Forgot password operation failed")	
-
-
-
-def update_password(data):
-	user_data = json.loads(data)
-	putil.validate_property_data(user_data,["old_password","new_password"])
-	user_email = putil.validate_for_user_id_exists(user_data.get("user_id"))
-	check_password = frappe.db.sql("""select `user` from __Auth where `user`=%s
-			and `password`=password(%s)""", (user_email, user_data.get("old_password") ))
-	if not check_password:
-		raise InvalidPasswordError("Invalid Old Password")			
-	else:
-		try:
-			new_password = user_data.get("new_password")
-			_update_password(user_email, new_password)
-			user_info = frappe.db.get("User", {"email": user_email})
-			args = {"first_name":user_info.get("first_name"), "new_password":new_password, "last_name":user_info.get("last_name")}
-			send_email(user_email, "Password Update Notification", "/templates/password_update.html", args)			
-			return {"operation":"Password Update", "message":"Password updated successfully", "user_id":user_data.get("user_id")}
-		except frappe.OutgoingEmailError:
-			raise OutgoingEmailError("Password Updated successfully but email not sent.")
-		except Exception,e:
-			raise ForgotPasswordOperationFailed("Update password operation failed")	
-
-
-
-
-def get_user_profile(data):
-	request_data = json.loads(data)
-	putil.validate_for_user_id_exists(request_data.get("user_id"))
-	try:
-		user_data = frappe.db.get_value("User",{"user_id": request_data.get("user_id")},["first_name", "last_name", "user_image" ,"user_id" ,"email", "mobile_no", "state", "city", "address", "area", "pincode" ,"birth_date", "lattitude", "longitude"],as_dict=True)
-		user_data = { user_field:user_value if user_value else ""  for user_field,user_value in user_data.items()}
-		if user_data.get("user_image"):
-			user_data["user_image"] = frappe.request.host_url + user_data.get("user_image")
-		user_data["city"] = frappe.db.get_value("City",user_data["city"],"city_name") or ""
-		user_data["location"] = frappe.db.get_value("Area",user_data["area"],"area") or ""
-		user_data["geo_location_lat"] = user_data.get("lattitude")
-		user_data["geo_location_lon"] = user_data.get("longitude")
-		return {"operation":"Search", "message":"Profile Found", "data":user_data, "user_id":request_data.get("user_id")}	
-	except Exception,e:
-		raise GetUserProfileOperationFailed("User Profile Operation failed")	
-
-
-
-def update_user_profile(data):
-	request_data = json.loads(data)
-	user_email = putil.validate_for_user_id_exists(request_data.get("user_id"))
-	city = frappe.db.get_value("City",{ "city_name":request_data.get("city") ,"state_name":request_data.get("state")}, "name")	
-	area = frappe.db.get_value("Area",{ "city_name":city ,"state_name":request_data.get("state"), "area":request_data.get("location")}, "name")
-	user_dict = {"first_name":request_data.get("first_name",""), "last_name":request_data.get("last_name",""), "mobile_no": request_data.get("mobile_number",""), "state": request_data.get("state",""), "city":city, "area":area, "address":request_data.get("address",""), "pincode":request_data.get("pin_code",""), "birth_date":request_data.get("dob",""),"lattitude":request_data.get("geo_location_lat"),"longitude":request_data.get("geo_location_lon")}
-	try:
-		# user_dict["user_image"] = store_image_to_propshikari(request_data)
-		user_doc = frappe.get_doc("User",user_email)
-		user_doc.update(user_dict)
-		user_doc.save(ignore_permissions=True)
-		return {"operation":"Update", "message":"Profile Updated Successfully", "user_id":request_data.get("user_id")}
-	except ImageUploadError:
-		raise ImageUploadError("Profile Image upload failed")
-	except Exception,e:
-		raise UserProfileUpdationFailed("Profile updation failed")	
-
-
-
-
-
-def send_email(email, subject, template, args):
-	frappe.sendmail(recipients=email, sender=None, subject=subject,
-			message=frappe.get_template(template).render(args))
 
 
 
@@ -251,30 +118,10 @@ def get_states_cities_locations_from_propshikari(data):
 
 
 
-def store_image_to_propshikari(request_data):
-	request_data = json.loads(request_data)
-	putil.validate_property_data(request_data,["profile_photo"])
-	if not request_data.get("profile_photo").get("file_ext"):
-		raise MandatoryError("Image Extension not found")
-	user_email = putil.validate_for_user_id_exists(request_data.get("user_id"))
-	if not os.path.exists(frappe.get_site_path("public","files",request_data.get("user_id"))):
-		os.mkdir(frappe.get_site_path("public","files",request_data.get("user_id")))
-	try:
-		base64_data = request_data.get("profile_photo").get("file_data").encode("utf8")				
-		base64_data = base64_data.split(',')[1]
-		imgdata = base64.b64decode(base64_data)
-		file_name = "PSUI-" + cstr(time.time())  + '.' + request_data.get("profile_photo").get("file_ext")
-		with open(frappe.get_site_path("public","files",request_data.get("user_id"),file_name),"wb+") as fi_nm:
-			fi_nm.write(imgdata)
-		file_name = "files/"+request_data.get("user_id")+'/'+file_name
-		frappe.db.set_value(dt="User",dn=user_email, field="user_image", val=file_name)
-		return {"operation":"Update", "message":"Profile Image updated Successfully", "profile_image_url":frappe.request.host_url + file_name, "user_id":request_data.get("user_id")}
-	except Exception,e:		
-	 	raise ImageUploadError("Profile Image Updation Failed")
 
 
 def store_request_in_elastic_search(property_data,search_query):
-	request_id = cstr(int(time.time())) + '-' +  cstr(random.randint(100000,999999))
+	request_id =  "REQ-"  + cstr(int(time.time())) + '-' +  cstr(random.randint(100000,999999))
 	request_dict = {
 		"user_id":property_data.get("user_id"),
 		"request_id":request_id, 
@@ -354,7 +201,7 @@ def search_group_with_given_criteria(request_data):
 			es = ElasticSearchController()
 			response = es.search_document_for_given_id("request",request_data.get("request_id"))
 			group_search_conditions = make_conditions_for_group_search(response)
-			group_result = frappe.db.sql(""" select  name as group_id, operation, property_type , property_sub_type, property_type_option ,location, min_budget, max_budget, min_area, max_area  from `tabGroup` {0} """.format(group_search_conditions),as_dict=True)
+			group_result = frappe.db.sql(""" select  name as group_id, operation, property_type , property_subtype , ifnull(property_subtype_option,"") as property_subtype_option ,ifnull(location,"") as location, ifnull(min_budget,"") as min_budget, ifnull(max_budget,"") as max_budget, ifnull(min_area,"") as min_area, ifnull(max_area,"") as max_area from `tabGroup` {0} """.format(group_search_conditions),as_dict=True)
 			for group in group_result:
 				join_flag = frappe.db.get_value("Group User" , {"group_id":group.get("group_id"), "user_id":request_data.get("user_id")},"name")
 				group["user_joined"] = 1 if join_flag else 0
@@ -366,9 +213,9 @@ def search_group_with_given_criteria(request_data):
 
 
 def make_conditions_for_group_search(response):
-	group_search_conditions = "where operation='{0}' and property_sub_type='{1}' and property_type='{2}' ".format(response.get("operation"),response.get("property_subtype"),response.get("property_type"))
+	group_search_conditions = "where operation='{0}' and property_subtype='{1}' and property_type='{2}' ".format(response.get("operation"),response.get("property_subtype"),response.get("property_type"))
 	if response.get("property_subtype_option"):
-		group_search_conditions += " and property_type_option = '{0}' ".format(response.get("property_subtype_option"))
+		group_search_conditions += " and property_subtype_option = '{0}' ".format(response.get("property_subtype_option"))
 	if response.get("location"):
 		group_search_conditions += " and location like '%{0}%' ".format(response.get("location"))
 	
@@ -469,6 +316,7 @@ def get_user_properties(request_data):
 		try:
 			es = ElasticSearchController()
 			response_data, total_records  = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40))
+			response_data = check_for_shortlisted_property(response_data, request_data.get("user_id"))
 			response_msg = "User Property Found" if len(response_data) else "User Property not found"
 			from_record = (request_data.get("page_number",1) - 1) * cint(request_data.get("records_per_page",40)) + 1 
 			return {"operation":"Search", "message":response_msg ,"total_records":total_records, "records_per_page":request_data.get("records_per_page",40),"from_record":from_record ,"to_record": from_record +  len(response_data) - 1 if response_data else from_record + request_data.get("records_per_page",40) - 1,"data":response_data, "user_id":request_data.get("user_id")}
@@ -478,6 +326,16 @@ def get_user_properties(request_data):
 			raise OperationFailed("Get User Properties Operation Failed")
 
 
+
+def check_for_shortlisted_property(response_data, user_id):
+	short_prop = frappe.db.get_values("Shortlisted Property",{"user_id":user_id}, "property_id" ,as_dict=True)
+	short_prop = [sp.get("property_id") for sp in short_prop if sp]
+	for response in response_data:
+		if response.get("property_id") in short_prop:
+			new_list = response.get("tag",[])
+			new_list.append("Shortlisted")
+			response["tag"] = new_list
+	return response_data		
 
 
 
@@ -507,7 +365,14 @@ def share_property(request_data):
 		except elasticsearch.ElasticsearchException,e:
 			raise ElasticSearchException(e.error)
 		except Exception,e:
-			raise e
+			raise OperationFailed("Share Property Operation Failed")
+
+
+
+
+def send_email(email, subject, template, args):
+	frappe.sendmail(recipients=email, sender=None, subject=subject,
+			message=frappe.get_template(template).render(args))
 
 
 

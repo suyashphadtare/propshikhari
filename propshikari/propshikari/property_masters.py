@@ -91,20 +91,27 @@ def create_group_in_hunterscamp(request_data):
 	if request_data:
 		request_data = json.loads(request_data)
 		putil.validate_for_user_id_exists(request_data.get("user_id"))
+		putil.validate_property_data(request_data, ["operation", "property_type", "property_subtype"])
+		group_search_conditions = make_conditions_for_duplicate_group(request_data)
+		group_result = frappe.db.sql(""" select  name from `tabGroup` {0} """.format(group_search_conditions),as_dict=True)
+		if group_result:
+			group_result = [ group.get("name") for group in group_result if group ]
+			raise DuplicateEntryError("Group {0} with same configuration already exists".format(','.join(group_result)))
 		try:
 			gr_doc = frappe.new_doc("Group")
 			gr_doc.group_title = request_data.get("group_title")
 			gr_doc.operation = request_data.get("operation")
 			gr_doc.property_type =  request_data.get("property_type")
-			gr_doc.property_sub_type = request_data.get("property_subtype")
+			gr_doc.property_subtype = request_data.get("property_subtype")
 			gr_doc.location = request_data.get("location")
-			gr_doc.property_type_option = request_data.get("property_subtype_option")
+			gr_doc.property_subtype_option = request_data.get("property_subtype_option")
 			gr_doc.creation_via  = "Website"
 			gr_doc.min_area = request_data.get("min_area",0)
 			gr_doc.max_area = request_data.get("max_area")
-			gr_doc.min_budget = request_data.get("min_budget",0)
+			gr_doc.min_budget = request_data.get("min_budget")
 			gr_doc.max_budget = request_data.get("max_budget")
 			gr_doc.unit_of_area = request_data.get("unit_of_area")
+			gr_doc.status = "Active"
 			gr_doc.save()
 			return {"operation":"Create", "group_id":gr_doc.name, "message":"Group Created"}
 		except frappe.MandatoryError,e:
@@ -132,6 +139,10 @@ def join_user_with_group_id(request_data):
 			grusr.user  = email
 			grusr.save()
 			return {"operation":"Search", "message":"Group joined"}
+		except frappe.MandatoryError,e:
+			raise MandatoryError("Mandatory Field {0} missing".format(e.message))
+		except (frappe.LinkValidationError, frappe.ValidationError)  as e:
+			raise InvalidDataError(e.message)
 		except Exception,e:
 			return {"operation":"Search", "message":"Group joining operation Failed"}
 
@@ -151,6 +162,10 @@ def shortlist_property(request_data):
 			sp_doc.property_id = request_data.get("property_id")
 			sp_doc.save()
 			return {"operation":"Create", "message":"Property Shortlisted" ,"property_id":request_data.get("property_id"), "user_id":request_data.get("user_id")}
+		except frappe.MandatoryError,e:
+			raise MandatoryError("Mandatory Field {0} missing".format(e.message))
+		except (frappe.LinkValidationError, frappe.ValidationError)  as e:
+			raise InvalidDataError(e.message)
 		except Exception,e:
 			raise OperationFailed("Shortlist Property Operation Failed")
 
@@ -175,7 +190,7 @@ def create_feedback(request_data):
 		except (frappe.LinkValidationError, frappe.ValidationError)  as e:
 			raise InvalidDataError(e.message)
 		except Exception,e:
-			raise e
+			raise OperationFailed("Feedback Creation Failed")
 
 
 
@@ -206,3 +221,18 @@ def create_alerts(request_data):
 	except Exception,e:
 		return {"operation":"Create", "message":"Alert not created"}
 
+
+def make_conditions_for_duplicate_group(response):
+	group_search_conditions = "where operation='{0}' and property_subtype='{1}' and property_type='{2}'  and status = 'Active'   ".format(response.get("operation"),response.get("property_subtype"),response.get("property_type"))
+	group_field_set = {"property_subtype_option" ,"min_area", "max_area", "min_budget", "max_budget", "location"}
+	request_field_set = set()
+
+	for group_field in group_field_set:
+		if response.get(group_field):
+			group_search_conditions += " and {0} = '{1}' ".format(group_field , response.get(group_field))
+			request_field_set.add(group_field)
+
+	for field in group_field_set - request_field_set:
+		group_search_conditions += " and {0} is null ".format(field)		
+
+	return group_search_conditions
