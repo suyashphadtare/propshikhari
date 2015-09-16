@@ -29,7 +29,7 @@
   },
   "amenities": {
     "is_mandatory": false,
-    "field_type": "nested"
+    "field_type": "list"
   },
   "description": {
     "is_mandatory": false,
@@ -93,7 +93,7 @@
   },
   "flat_facilities": {
     "is_mandatory": false,
-    "field_type": "nested"
+    "field_type": "list"
   },
   "transaction_type": {
     "is_mandatory": false,

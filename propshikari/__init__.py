@@ -11,10 +11,9 @@ def login(data):
 	user_data = json.loads(data)
 	try: 
 		if user_data.get("email") and user_data.get("password"):
-			loginmgr = frappe.auth.LoginManager()
 			frappe.clear_cache(user = user_data["email"])
-			loginmgr.authenticate(user_data["email"],user_data["password"])
-			loginmgr.post_login()
+			frappe.local.login_manager.authenticate(user_data["email"],user_data["password"])
+			frappe.local.login_manager.post_login()
 			subscription = get_subscriptions(user_data["email"])
 			frappe.response["sid"] = frappe.session.sid
 			frappe.response["message"] = "Logged In"

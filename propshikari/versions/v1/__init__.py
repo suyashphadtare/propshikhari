@@ -3,6 +3,7 @@ import api_handler
 import propshikari.propshikari.propshikari_api as api
 import propshikari.propshikari.property_masters as masters
 import propshikari.propshikari.project_api as projt
+import propshikari.propshikari.user_api as usr
 from frappe.utils import cstr, cint
 import frappe
 import time
@@ -25,29 +26,29 @@ def search_property(data):
 
 @frappe.whitelist(allow_guest=True)
 def register_user(data):
-	return api.register_user(data)
+	return usr.register_user(data)
 
 
 @frappe.whitelist(allow_guest=True)
 def forgot_password(data):
-	return api.forgot_password(data)
+	return usr.forgot_password(data)
 
 
 
 @frappe.whitelist()
 def update_password(data):
-	return api.update_password(data)
+	return usr.update_password(data)
 
 
 
 @frappe.whitelist()
 def get_user_profile(data):
-	return api.get_user_profile(data)
+	return usr.get_user_profile(data)
 
 
 @frappe.whitelist()
 def update_user_profile(data):
-	return api.update_user_profile(data)
+	return usr.update_user_profile(data)
 
 
 @frappe.whitelist()
@@ -63,7 +64,7 @@ def get_state_city_location_list(data):
 
 @frappe.whitelist()
 def update_user_image(data):
-	return api.store_image_to_propshikari(data)
+	return usr.store_image_to_propshikari(data)
 
 	
 
