@@ -178,14 +178,15 @@ def prepare_amenities_data(amenities_data):
 def get_date_diff_from_posting(response_data):
 	for response in response_data:
 		current_date = datetime.now()
-		posting_date = datetime.strptime(response.get("posting_date"), "%d-%m-%Y")
-		r = relativedelta.relativedelta(current_date, posting_date) 
-		if r.years:
-			response["elapsed_time"] = "{0} year ago".format(r.years)
-		elif r.months:
-			response["elapsed_time"] = "{0} month ago".format(r.months)
-		elif r.days:
-			response["elapsed_time"] = "{0} days ago".format(r.days)
+		if response.get("posting_date"):
+			posting_date = datetime.strptime(response.get("posting_date"), "%d-%m-%Y")
+			r = relativedelta.relativedelta(current_date, posting_date) 
+			if r.years:
+				response["elapsed_time"] = "{0} year ago".format(r.years)
+			elif r.months:
+				response["elapsed_time"] = "{0} month ago".format(r.months)
+			elif r.days:
+				response["elapsed_time"] = "{0} days ago".format(r.days)
 	return response_data
 
 
