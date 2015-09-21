@@ -162,7 +162,20 @@ def get_alerts(data):
 
 @frappe.whitelist()
 def get_project_details(data):
-	return projt.get_project_of_given_id(data)		
+	return projt.get_project_of_given_id(data)
+
+
+@frappe.whitelist(allow_guest=True)
+def search_project(data):
+	return projt.search_project(data)
+
+@frappe.whitelist(allow_guest=True)
+def remove_shortlisted_property(data):
+	return masters.remove_shortlisted_property(data)
+
+@frappe.whitelist(allow_guest=True)
+def validate_session(data):
+	return usr.validate_for_session_exists(data)					
 
 
 

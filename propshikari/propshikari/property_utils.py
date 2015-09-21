@@ -32,7 +32,7 @@ def generate_search_query(property_data):
 	"""
 	
 
-	property_field_dict = {"operation":"operation", "property_type":"property_type", "property_subtype":"property_subtype", "location":"location", "property_subtype_option":"property_subtype_option"}
+	property_field_dict = {"operation":"operation", "property_type":"property_type", "property_subtype":"property_subtype", "location":"location", "property_subtype_option":"property_subtype_option", "city":"city"}
 	must_clause_list = [ {"match":{ property_field : property_data.get(request_field) } } for request_field,property_field in property_field_dict.items() if property_data.get(request_field,False)]
 	must_clause_list.append({"match":{ "status": "Active" } })
 	range_field_dict = { "carpet_area":["min_area", "max_area"], "price" :["min_budget", "max_budget"] }
@@ -133,12 +133,12 @@ def generate_search_query_from_property_data(property_data):
 	"""
 
 	
-	property_field_dict = {"operation":"operation", "property_type":"property_type", "property_subtype":"property_subtype", "location":"location", "property_subtype_option":"property_subtype_option"}
+	property_field_dict = {"operation":"operation", "property_type":"property_type", "property_subtype":"property_subtype", "location":"location", "property_subtype_option":"property_subtype_option", "city":"city"}
 	must_clause_list = [ {"match":{ property_field : property_data.get(request_field) } } for request_field,property_field in property_field_dict.items() if property_data.get(request_field,False)]
 	must_clause_list.append({"match":{ "status": "Active" } })
 	range_list = range_list = [ {"range": {range_key:{"lte":property_data.get(range_key)}} } for range_key in ["carpet_area","price"] if property_data.get(range_key,False)]
 	must_clause_list.extend(range_list)
-	search_query = { "query":{ "bool":{ "must":must_clause_list } } }
+	search_query = { "query":{ "bool":{ "must":must_clause_list } }, "sort": [{ "posted_datetime": { "order": "desc" }}] }
 	return search_query				
 
 
@@ -193,11 +193,47 @@ def get_date_diff_from_posting(response_data):
 def isolate_city_from_location(property_data):
 	if property_data.get("location"):
 		location_city_list = property_data.get("location").split(',')
-		if location_city_list == 2: 
+		if len(location_city_list) == 2: 
 			property_data["location"] = location_city_list[0]
 			property_data["city"] = location_city_list[1]
 		else:
 			raise InvalidDataError("Invalid Input of Location Field")
+
+
+def generate_project_search_query(project_data):
+
+	""" 
+        Generate search query for project search from given sets of criteria 
+        like project-type, project_subtype, budget, area etc.
+
+	"""
+	
+
+	project_field_dict = {"operation", "project_type", "project_subtype", "location", "city"}
+	must_clause_list = [ {"match":{ project_field : project_data.get(project_field) } } for project_field in project_field_dict if project_data.get(project_field,False)]
+	must_clause_list.append({"match":{ "status": "Active" } })
+	range_dict = {	
+					"property_details.min_area":["min_area","gte"], 
+					"property_details.max_area":["max_area", "lte"], 
+					"property_details.min_price":["min_budget","gte"], 
+					"property_details.max_price":["max_budget","lte"]
+				}	
+	range_list = [ {"range": {range_key: {range_value[1]:project_data.get(range_value[0])  } } } for range_key,range_value in range_dict.items() if project_data.get(range_value[0])]
+	filter_query = prepare_nested_query(range_list) if range_list else {}
+	search_query = { "query": { "filtered":{ "query":{ "bool":{ "must":must_clause_list } }, "filter":filter_query}   }, "sort": [{ "posted_datetime": { "order": "desc" }}] }
+	return search_query
+
+
+def prepare_nested_query(range_list):
+	return { "nested":
+				{ 
+					"path":"property_details",
+					"query":{ 
+						"bool":{ "must":range_list }  
+					} 
+				} 
+			}
+
 
 
 

@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
 import frappe
-from frappe.utils import cstr, cint
+from frappe.utils import cstr, cint, flt
 from elastic_controller import ElasticSearchController
 from frappe.utils import add_days, getdate, now, nowdate ,random_string ,add_months, date_diff 
 from frappe.auth import _update_password
@@ -14,6 +14,7 @@ from PIL import Image
 import os
 import base64
 import elasticsearch
+import math
 from api_handler.api_handler.exceptions import *
 
 
@@ -59,19 +60,21 @@ def post_property(data):
 
 def search_property(data):
 	if data:
-		try:
-			old_property_data = json.loads(data)
-			property_data = putil.validate_property_posting_data(old_property_data,"property_json/property_search.json")
+		old_property_data = json.loads(data)
+		property_data = putil.validate_property_posting_data(old_property_data,"property_json/property_search.json")
+		putil.isolate_city_from_location(property_data)
+		try:	
 			search_query = putil.generate_search_query(property_data)
 			es = ElasticSearchController()
 			response_data, total_records = es.search_document(["property"], search_query, old_property_data.get("page_number",1), old_property_data.get("records_per_page",40))
-			request_id = store_request_in_elastic_search(old_property_data,search_query)
+			request_id = store_request_in_elastic_search(property_data, search_query, "Property Search")
 			if old_property_data.get("user_id") != "Guest":				
 				response_data = check_for_shortlisted_property(response_data,old_property_data.get("user_id"))
 			response_data = putil.get_date_diff_from_posting(response_data)
 			response_msg = "Property found for specfied criteria" if len(response_data) else "Property not found"
 			from_record = (old_property_data.get("page_number",1) - 1) * cint(old_property_data.get("records_per_page",40)) + 1
-			return {"operation":"Search", "message":response_msg ,"total_records":total_records, "request_id":request_id, "records_per_page":old_property_data.get("records_per_page",40),"from_record":from_record ,"to_record":from_record +  len(response_data) - 1 if response_data else from_record + old_property_data.get("records_per_page",40) - 1,"data":response_data, "user_id":old_property_data.get("user_id")}
+			no_of_pages = math.ceil(flt(total_records)/old_property_data.get("records_per_page",40))
+			return {"operation":"Search", "message":response_msg ,"total_records":total_records, "request_id":request_id, "records_per_page":old_property_data.get("records_per_page",40),"from_record":from_record ,"to_record":from_record +  len(response_data) - 1 if response_data else from_record + old_property_data.get("records_per_page",40) - 1,"data":response_data, "user_id":old_property_data.get("user_id"), "no_of_pages":no_of_pages}
 		except elasticsearch.RequestError,e:
 			raise ElasticInvalidInputFormatError(e.error)
 		except elasticsearch.ElasticsearchException,e:
@@ -120,21 +123,25 @@ def get_states_cities_locations_from_propshikari(data):
 
 
 
-def store_request_in_elastic_search(property_data,search_query):
+def store_request_in_elastic_search(property_data, search_query, request_type):
 	request_id =  "REQ-"  + cstr(int(time.time())) + '-' +  cstr(random.randint(100000,999999))
 	request_dict = {
 		"user_id":property_data.get("user_id"),
 		"request_id":request_id, 
 		"operation":property_data.get("operation"), 
 		"property_type":property_data.get("property_type"), 
-		"property_subtype":property_data.get("property_subtype"), 
+		"property_subtype":property_data.get("property_subtype"),
+		"project_type":property_data.get("project_type"), 
+		"project_subtype":property_data.get("project_subtype"),  
 		"location":property_data.get("location"), 
 		"property_subtype_option":property_data.get("property_subtype_option"), 
 		"min_area":property_data.get("min_area"),
 		"max_area":property_data.get("max_area"), 
 		"min_budget":property_data.get("min_budget"), 
 		"max_budget":property_data.get("max_budget"),
-		"search_query":cstr(search_query)
+		"city":property_data.get("city"),
+		"search_query":cstr(search_query),
+		"request_type":request_type
 
 	}
 	meta_dict = add_meta_fields_before_posting(property_data)
@@ -201,7 +208,7 @@ def search_group_with_given_criteria(request_data):
 			es = ElasticSearchController()
 			response = es.search_document_for_given_id("request",request_data.get("request_id"))
 			group_search_conditions = make_conditions_for_group_search(response)
-			group_result = frappe.db.sql(""" select  name as group_id, operation, property_type , property_subtype , ifnull(property_subtype_option,"") as property_subtype_option ,ifnull(location,"") as location, ifnull(min_budget,"") as min_budget, ifnull(max_budget,"") as max_budget, ifnull(min_area,"") as min_area, ifnull(max_area,"") as max_area from `tabGroup` {0} """.format(group_search_conditions),as_dict=True)
+			group_result = frappe.db.sql(""" select  name as group_id, operation, property_type , property_subtype , ifnull(property_subtype_option,"") as property_subtype_option ,ifnull(location,"") as location, ifnull(city,"") as city, ifnull(min_budget,"") as min_budget, ifnull(max_budget,"") as max_budget, ifnull(min_area,"") as min_area, ifnull(max_area,"") as max_area from `tabGroup` {0} """.format(group_search_conditions),as_dict=True)
 			for group in group_result:
 				join_flag = frappe.db.get_value("Group User" , {"group_id":group.get("group_id"), "user_id":request_data.get("user_id")},"name")
 				group["user_joined"] = 1 if join_flag else 0
@@ -213,9 +220,11 @@ def search_group_with_given_criteria(request_data):
 
 
 def make_conditions_for_group_search(response):
-	group_search_conditions = "where operation='{0}' and property_subtype='{1}' and property_type='{2}' ".format(response.get("operation"),response.get("property_subtype"),response.get("property_type"))
-	if response.get("property_subtype_option"):
-		group_search_conditions += " and property_subtype_option = '{0}' ".format(response.get("property_subtype_option"))
+	group_search_conditions = "where operation='{0}' and property_subtype='{1}' and property_type='{2}' and status='Active' ".format(response.get("operation"),response.get("property_subtype"),response.get("property_type"))
+	non_mandatory_fields = ["property_subtype_option", "city"]
+	for field in non_mandatory_fields:
+		if response.get(field):
+			group_search_conditions += " and {0} = '{1}' ".format(field,response.get(field))
 	if response.get("location"):
 		group_search_conditions += " and location like '%{0}%' ".format(response.get("location"))
 	
@@ -426,10 +435,11 @@ def get_similar_properties(request_data):
 		search_query = search_dict.get(request_data.get("request_type"))(request_data)
 		try:
 			es = ElasticSearchController()
-			response_data, total_records = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40))
-			from_record =  ((request_data.get("page_number",1) - 1) * cint(request_data.get("records_per_page",40)) + 1 )
+			response_data, total_records = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",3))
+			from_record =  ((request_data.get("page_number",1) - 1) * cint(request_data.get("records_per_page",3)) + 1 )
 			response_msg = "Similar Property Found" if response_data else "Similar property not found"
-			return {"operation":"Search", "message":response_msg ,"total_records":total_records,"records_per_page":request_data.get("records_per_page",40),"from_record":from_record ,"to_record": from_record +  len(response_data) - 1 if response_data else from_record + request_data.get("records_per_page",40) - 1 ,"data":response_data, "user_id":request_data.get("user_id")}
+			no_of_pages = math.ceil(flt(total_records)/request_data.get("records_per_page",3))
+			return {"operation":"Search", "message":response_msg ,"total_records":total_records,"records_per_page":request_data.get("records_per_page",3),"from_record":from_record ,"to_record": from_record +  len(response_data) - 1 if response_data else from_record + request_data.get("records_per_page",3) - 1 ,"data":response_data, "user_id":request_data.get("user_id"), "no_of_pages":no_of_pages}
 		except elasticsearch.ElasticsearchException,e:
 			raise ElasticSearchException(e.error)
 		except Exception,e:
@@ -503,7 +513,8 @@ def get_alerts(request_data):
 			response_data, total_records = es.search_document(["property"], property_search_query, request_data.get("page_number",1), request_data.get("records_per_page",40))
 			from_record =  ((request_data.get("page_number",1) - 1) * cint(request_data.get("records_per_page",40)) + 1 )
 			response_msg = "Property Found" if response_data else "Property not found"
-			return {"operation":"Search", "message":response_msg ,"total_records":total_records,"records_per_page":request_data.get("records_per_page",40),"from_record":from_record ,"to_record": from_record +  len(response_data) - 1 if response_data else from_record + request_data.get("records_per_page",40) - 1 ,"data":response_data, "user_id":request_data.get("user_id")}
+			no_of_pages = math.ceil(flt(total_records)/request_data.get("records_per_page",40))
+			return {"operation":"Search", "message":response_msg ,"total_records":total_records,"records_per_page":request_data.get("records_per_page",40),"from_record":from_record ,"to_record": from_record +  len(response_data) - 1 if response_data else from_record + request_data.get("records_per_page",40) - 1 ,"data":response_data, "user_id":request_data.get("user_id"), "no_of_pages":no_of_pages}
 		except elasticsearch.ElasticsearchException,e:
 			raise ElasticSearchException(e.error)
 		except Exception,e:
