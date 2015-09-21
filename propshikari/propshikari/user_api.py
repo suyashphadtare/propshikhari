@@ -10,7 +10,7 @@ import random
 import datetime
 import os
 import base64
-from propshikari import login
+from propshikari import login ,get_subscriptions
 from api_handler.api_handler.exceptions import *
 
 
@@ -51,7 +51,7 @@ def register_user(data):
 			send_email(user_data.get("email"), "Welcome to Propshikari", "/templates/new_user_template.html", args)
 			login(data)
 			frappe.response["message"] = "User Registeration done Successfully"
-			return frappe.response.get("data")
+			return {"data":frappe.response.get("data")}
 		except frappe.OutgoingEmailError:
 			frappe.response["user_id"] = user_id
 			raise OutgoingEmailError("User registered successfully but email not sent.")
@@ -60,7 +60,6 @@ def register_user(data):
 		except (frappe.LinkValidationError, frappe.ValidationError)  as e:
 			raise InvalidDataError(e.message)
 		except Exception,e:
-			print frappe.get_traceback()
 			raise UserRegisterationError("User Registration Failed")		
 
 
@@ -128,16 +127,31 @@ def get_user_profile(data):
 	request_data = json.loads(data)
 	putil.validate_for_user_id_exists(request_data.get("user_id"))
 	try:
-		user_data = frappe.db.get_value("User",{"user_id": request_data.get("user_id")},["first_name", "last_name", "user_image" ,"user_id" ,"email", "mobile_no", "state", "city", "address", "area", "pincode" ,"birth_date", "lattitude", "longitude"],as_dict=True)
-		user_data = { user_field:user_value if user_value else ""  for user_field,user_value in user_data.items()}
+		user_data = frappe.db.sql(""" SELECT 
+											 ifnull(first_name, "") AS first_name,
+										     ifnull(last_name, "") AS last_name,
+										     ifnull(user_image,"") AS user_image,
+										     ifnull(user_id,"") AS user_id,
+										     ifnull(email, "") AS email,
+										     ifnull(mobile_no, "") AS mobile_no,
+										     ifnull(state, "") AS state,
+										     ifnull(city,"") AS city,
+										     ifnull(address, "") AS address,
+										     ifnull(area, "") AS area,
+										     ifnull(pincode, "") AS pincode,
+										     ifnull(birth_date, "") AS birth_date,
+										     ifnull(lattitude,"") AS geo_location_lat,
+										     ifnull(longitude,"") AS geo_location_lon
+										FROM `tabUser`
+										WHERE user_id = '{0}'  """.format(request_data.get("user_id")),as_dict=True)
+		user_data = user_data[0]
 		if user_data.get("user_image"):
 			user_data["user_image"] = frappe.request.host_url + user_data.get("user_image")
 		user_data["city"] = frappe.db.get_value("City",user_data["city"],"city_name") or ""
 		user_data["location"] = frappe.db.get_value("Area",user_data["area"],"area") or ""
-		user_data["geo_location_lat"] = user_data.get("lattitude")
-		user_data["geo_location_lon"] = user_data.get("longitude")
 		return {"operation":"Search", "message":"Profile Found", "data":user_data, "user_id":request_data.get("user_id")}	
 	except Exception,e:
+		print frappe.get_traceback()
 		raise GetUserProfileOperationFailed("User Profile Operation failed")	
 
 
@@ -189,4 +203,18 @@ def store_image_to_propshikari(request_data):
 		frappe.db.set_value(dt="User",dn=user_email, field="user_image", val=file_name)
 		return {"operation":"Update", "message":"Profile Image updated Successfully", "profile_image_url":frappe.request.host_url + file_name, "user_id":request_data.get("user_id")}
 	except Exception,e:		
-	 	raise ImageUploadError("Profile Image Updation Failed")				
+	 	raise ImageUploadError("Profile Image Updation Failed")
+
+
+
+def validate_for_session_exists(request_data):
+	request_data = json.loads(request_data)
+	user_email = putil.validate_for_user_id_exists(request_data.get("user_id"))
+	sessions_status = frappe.db.get_value("Sessions", {"user":user_email, "sid":request_data.get("sid")}, "status")
+	if sessions_status == "Active":
+		return { "operation":"search", "session_expired":False, "message":"Session exists against user {0}".format(user_email)}
+	else:
+		return { "operation":"search", "session_expired":True, "message":"Session does not exists"}			
+
+
+			

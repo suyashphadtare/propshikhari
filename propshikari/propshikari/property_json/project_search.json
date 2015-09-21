@@ -1,21 +1,17 @@
 {
   "operation": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "project_type": {
     "is_mandatory": true,
     "field_type": "string"
   },
-  "property_type": {
-    "is_mandatory": true,
-    "field_type": "string"
-  },
-  "property_subtype": {
+  "project_subtype": {
     "is_mandatory": true,
     "field_type": "string"
   },
   "location": {
-    "is_mandatory": false,
-    "field_type": "string"
-  },
-  "property_subtype_option":{
     "is_mandatory": false,
     "field_type": "string"
   },
@@ -38,5 +34,17 @@
   "user_id":{
     "is_mandatory": false,
     "field_type": "string"
+  },
+  "sid":{
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "page_number":{
+    "is_mandatory": false,
+    "field_type": "number"
+  },
+  "records_per_page":{
+    "is_mandatory": false,
+    "field_type": "number"
   }
  } 

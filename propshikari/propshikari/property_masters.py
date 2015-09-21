@@ -92,6 +92,7 @@ def create_group_in_hunterscamp(request_data):
 		request_data = json.loads(request_data)
 		putil.validate_for_user_id_exists(request_data.get("user_id"))
 		putil.validate_property_data(request_data, ["operation", "property_type", "property_subtype"])
+		putil.isolate_city_from_location(request_data)
 		group_search_conditions = make_conditions_for_duplicate_group(request_data)
 		group_result = frappe.db.sql(""" select  name from `tabGroup` {0} """.format(group_search_conditions),as_dict=True)
 		if group_result:
@@ -106,11 +107,12 @@ def create_group_in_hunterscamp(request_data):
 			gr_doc.location = request_data.get("location")
 			gr_doc.property_subtype_option = request_data.get("property_subtype_option")
 			gr_doc.creation_via  = "Website"
-			gr_doc.min_area = request_data.get("min_area",0)
+			gr_doc.min_area = request_data.get("min_area")
 			gr_doc.max_area = request_data.get("max_area")
 			gr_doc.min_budget = request_data.get("min_budget")
 			gr_doc.max_budget = request_data.get("max_budget")
 			gr_doc.unit_of_area = request_data.get("unit_of_area")
+			gr_doc.city =request_data.get("city")
 			gr_doc.status = "Active"
 			gr_doc.save()
 			return {"operation":"Create", "group_id":gr_doc.name, "message":"Group Created"}
@@ -160,6 +162,7 @@ def shortlist_property(request_data):
 			sp_doc = frappe.new_doc("Shortlisted Property")
 			sp_doc.user_id = request_data.get("user_id")
 			sp_doc.property_id = request_data.get("property_id")
+			sp_doc.status = "Active"
 			sp_doc.save()
 			return {"operation":"Create", "message":"Property Shortlisted" ,"property_id":request_data.get("property_id"), "user_id":request_data.get("user_id")}
 		except frappe.MandatoryError,e:
@@ -197,6 +200,13 @@ def create_feedback(request_data):
 def create_alerts(request_data):
 	request_data = json.loads(request_data)
 	putil.validate_for_user_id_exists(request_data.get("user_id"))
+	putil.validate_property_data(request_data, ["operation", "property_type", "property_subtype"])
+	putil.isolate_city_from_location(request_data)
+	alert_search_conditions = make_conditions_for_duplicate_group(request_data)
+	alert_result = frappe.db.sql(""" select  name from `tabAlerts` {0} """.format(alert_search_conditions),as_dict=True)
+	if alert_result:
+		alert_result = [ alert.get("name") for alert in alert_result if alert ]
+		raise DuplicateEntryError("Alert {0} with same configuration already exists".format(','.join(alert_result)))
 	try:
 		alrt = frappe.new_doc("Alerts")
 		alrt.alert_title = request_data.get("alert_title")
@@ -206,12 +216,14 @@ def create_alerts(request_data):
 		alrt.location = request_data.get("location")
 		alrt.property_subtype_option = request_data.get("property_subtype_option")
 		alrt.creation_via  = "Website"
-		alrt.min_area = request_data.get("min_area",0)
-		alrt.max_area = request_data.get("max_area",0)
-		alrt.min_budget = request_data.get("min_budget",0)
-		alrt.max_budget = request_data.get("max_budget",0)
+		alrt.min_area = request_data.get("min_area")
+		alrt.max_area = request_data.get("max_area")
+		alrt.min_budget = request_data.get("min_budget")
+		alrt.max_budget = request_data.get("max_budget")
 		alrt.unit_of_area = request_data.get("unit_of_area")
 		alrt.user_id = request_data.get("user_id")
+		alrt.city = request_data.get("city")
+		alrt.status = "Active"
 		alrt.save()
 		return {"operation":"Create", "alert_id":alrt.name, "message":"Alert Created"}
 	except frappe.MandatoryError,e:
@@ -224,7 +236,7 @@ def create_alerts(request_data):
 
 def make_conditions_for_duplicate_group(response):
 	group_search_conditions = "where operation='{0}' and property_subtype='{1}' and property_type='{2}'  and status = 'Active'   ".format(response.get("operation"),response.get("property_subtype"),response.get("property_type"))
-	group_field_set = {"property_subtype_option" ,"min_area", "max_area", "min_budget", "max_budget", "location"}
+	group_field_set = {"property_subtype_option" ,"min_area", "max_area", "min_budget", "max_budget", "location", "city"}
 	request_field_set = set()
 
 	for group_field in group_field_set:
@@ -233,6 +245,31 @@ def make_conditions_for_duplicate_group(response):
 			request_field_set.add(group_field)
 
 	for field in group_field_set - request_field_set:
-		group_search_conditions += " and {0} is null ".format(field)		
+		group_search_conditions += " and ({0}= ''  or {0} is null ) ".format(field)		
 
 	return group_search_conditions
+
+
+
+""" 
+	Remove shortlised property for given user id.
+
+"""
+
+def remove_shortlisted_property(request_data):
+	request_data = json.loads(request_data)
+	email = putil.validate_for_user_id_exists(request_data.get("user_id"))
+	if not request_data.get("property_id"):
+		raise MandatoryError("Mandatory Field Property Id missing")
+	sp_nm = frappe.db.get_value("Shortlisted Property", {"user_id":request_data.get("user_id"), "property_id":request_data.get("property_id"), "status":"Active"}, "name")	
+	if sp_nm:
+		sp_doc = frappe.get_doc("Shortlisted Property", sp_nm)
+		sp_doc.status = "Inactive"
+		sp_doc.save(ignore_permissions=True)
+		return { 
+				"operation":"Update",
+				"message":"Shortlisted Property removed successfully", 
+				"user_id":request_data.get("user_id") 
+			}
+	else:
+		raise DoesNotExistError("Property Id is not shortlised against user.")
