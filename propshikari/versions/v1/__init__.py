@@ -169,11 +169,11 @@ def get_project_details(data):
 def search_project(data):
 	return projt.search_project(data)
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def remove_shortlisted_property(data):
 	return masters.remove_shortlisted_property(data)
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def validate_session(data):
 	return usr.validate_for_session_exists(data)					
 
