@@ -41,6 +41,8 @@ def post_property(data):
 			data["posting_date"] = data.get("posting_date") if data.get("posting_date") else data["creation_date"]
 			data["amenities"] = putil.prepare_amenities_data(data.get("amenities"))
 			data["flat_facilities"] = putil.prepare_amenities_data(data.get("flat_facilities"))
+			data["possession_status"] = "Immediate" if data.get("possession") else data.get("possession_date")
+			data.pop("possession_date", None)
 			es = ElasticSearchController()
 			response_data = es.index_document("property",data, custom_id)
 			if subs_doc and response_data.get("created"):
