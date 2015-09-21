@@ -196,7 +196,7 @@ def isolate_city_from_location(property_data):
 		if len(location_city_list) == 2: 
 			property_data["location"] = location_city_list[0]
 			property_data["city"] = location_city_list[1]
-		else:
+		elif len(location_city_list) > 2:
 			raise InvalidDataError("Invalid Input of Location Field")
 
 
