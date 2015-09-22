@@ -39,8 +39,8 @@ def post_property(data):
 			data["posted_by"] = old_data.get("user_id")
 			data["user_email"] = email
 			data["posting_date"] = data.get("posting_date") if data.get("posting_date") else data["creation_date"]
-			data["amenities"] = putil.prepare_amenities_data(data.get("amenities"))
-			data["flat_facilities"] = putil.prepare_amenities_data(data.get("flat_facilities"))
+			data["amenities"] = putil.prepare_amenities_data(data.get("amenities"), data.get("property_type"))
+			data["flat_facilities"] = putil.prepare_flat_facilities_data(data.get("flat_facilities"), data.get("property_type"))
 			data["possession_status"] = "Immediate" if data.get("possession") else data.get("possession_date")
 			data.pop("possession_date", None)
 			es = ElasticSearchController()
