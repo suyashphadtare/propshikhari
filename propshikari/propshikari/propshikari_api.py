@@ -300,7 +300,7 @@ def get_shortlisted_property(request_data):
 	if request_data:
 		request_data = json.loads(request_data)
 		email = putil.validate_for_user_id_exists(request_data.get("user_id"))
-		property_ids_list = frappe.db.get_values("Shortlisted Property", {"user_id":request_data.get("user_id")}, "property_id")
+		property_ids_list = frappe.db.get_values("Shortlisted Property", {"user_id":request_data.get("user_id"), "status":"Active"}, "property_id")
 		if not property_ids_list:
 			return {"operation":"Search", "message":"No Single Shortlisted property found", "user_id":request_data.get("user_id")}
 		property_ids_list = [ property_id[0] for property_id in property_ids_list if property_id]
