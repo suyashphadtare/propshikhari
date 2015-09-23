@@ -217,7 +217,7 @@ def create_alerts(request_data):
 		raise DuplicateEntryError("Alert {0} with same configuration already exists".format(','.join(alert_result)))
 	try:
 		alrt = frappe.new_doc("Alerts")
-		alrt.alert_title = generate_title(request_data)
+		alrt.alert_title = request_data.get("alert_title")
 		alrt.operation = request_data.get("operation")
 		alrt.property_type =  request_data.get("property_type")
 		alrt.property_subtype = request_data.get("property_subtype")

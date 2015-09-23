@@ -223,7 +223,7 @@ def generate_project_search_query(project_data):
 	"""
 	
 
-	project_field_dict = {"operation", "project_type", "project_subtype", "location", "city"}
+	project_field_dict = {"project_type", "project_subtype", "location", "city"}
 	must_clause_list = [ {"match":{ project_field : project_data.get(project_field) } } for project_field in project_field_dict if project_data.get(project_field,False)]
 	must_clause_list.append({"match":{ "status": "Active" } })
 	range_dict = {	
