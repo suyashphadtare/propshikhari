@@ -5,6 +5,7 @@ import property_utils as putil
 import json
 import time
 import random
+import datetime
 from api_handler.api_handler.exceptions import *
 
 """
@@ -216,7 +217,7 @@ def create_alerts(request_data):
 		raise DuplicateEntryError("Alert {0} with same configuration already exists".format(','.join(alert_result)))
 	try:
 		alrt = frappe.new_doc("Alerts")
-		alrt.alert_title = request_data.get("alert_title")
+		alrt.alert_title = generate_title(request_data)
 		alrt.operation = request_data.get("operation")
 		alrt.property_type =  request_data.get("property_type")
 		alrt.property_subtype = request_data.get("property_subtype")
@@ -280,3 +281,54 @@ def remove_shortlisted_property(request_data):
 			}
 	else:
 		raise DoesNotExistError("Property Id is not shortlised against user.")
+
+
+def generate_title(request_data):
+	title = ""
+	property_type = request_data.get("property_type")
+	property_subtype = request_data.get("property_subtype")
+	property_subtype_option = request_data.get("property_subtype_option")
+	location = request_data.get("location")
+	current_date = datetime.datetime.now().strftime("%d/%m/%Y")
+
+	if not location:
+		title = '-'.join([property_type, property_subtype, current_date])
+	else:
+		if property_subtype_option:
+			title = '-'.join([property_subtype_option, location, current_date])
+		else:
+			title = '-'.join([property_subtype, location, current_date])
+	return title
+
+
+
+def create_lead_from_userid(request_data, email):
+	user_data = frappe.db.get_values("User", {"email":email}, '*')
+	try:
+		lead = frappe.new_doc("Lead")
+		lead.lead_name = user_data.get("first_name")
+		lead.lead_from = "Propshikari"
+		lead.save(ignore_permissions=True)
+		address_nm = create_lead_address_from_user_data(user_data, lead.name)
+	except frappe.MandatoryError,e:
+		raise MandatoryError("Mandatory Field {0} missing".format(e.message))
+	except (frappe.LinkValidationError, frappe.ValidationError)  as e:
+		raise InvalidDataError(e.message)
+	except Exception,e:
+		raise OperationFailed("Lead Creation failed")
+
+
+def create_lead_address_from_user_data(user_data, lead):
+	if user_data.get("city") and user_data.get("area"):
+		try:
+			addr = frappe.new_doc("Address")
+			addr.address_line1 = user_data.get("area")
+			addr.address_line2 = user_data.get("address")
+			addr.city = frappe.db.get_value("City", user_data.get("city"), "city_name")
+			addr.state = user_data.get("state")
+			addr.email_id = user_data.get("email")
+			addr.pincode = user_data.get("pincode")
+			addr.lead = lead
+			addr.save(ignore_permissions=True)
+		except (frappe.LinkValidationError, frappe.ValidationError)  as e:
+			raise InvalidDataError(e.message)		
