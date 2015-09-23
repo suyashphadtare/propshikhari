@@ -2,7 +2,8 @@ from __future__ import unicode_literals
 import frappe
 from frappe.utils import cstr, cint, flt
 from elastic_controller import ElasticSearchController
-from frappe.utils import add_days, getdate, now, nowdate ,random_string ,add_months, date_diff 
+from frappe.utils import add_days, getdate, now, nowdate ,random_string ,add_months, date_diff
+from property_masters import create_lead_from_userid 
 from frappe.auth import _update_password
 import property_utils as putil
 import json ,ast
@@ -287,12 +288,12 @@ def get_property_contact(request_data):
 		try:
 			es = ElasticSearchController()
 			response = es.search_document_for_given_id("property",request_data.get("property_id"),[],["agent_name", "agent_no", "contact_no" ,"contact_person"])
+			create_lead_from_userid(request_data, email)
 			return {"operation":"Search", "message":"Contact Details found" if len(response) else "Contact Details Not Found", "user_id":request_data.get("user_id"), "data":response}
 		except elasticsearch.TransportError:
 			raise DoesNotExistError("Property Id does not exists")
 		except Exception,e:
-			raise OperationFailed("Get Property Contact Operation Failed")
-
+			raise e
 
 
 def get_shortlisted_property(request_data):
@@ -341,7 +342,7 @@ def get_user_properties(request_data):
 
 
 def check_for_shortlisted_property(response_data, user_id):
-	short_prop = frappe.db.get_values("Shortlisted Property",{"user_id":user_id}, "property_id" ,as_dict=True)
+	short_prop = frappe.db.get_values("Shortlisted Property",{"user_id":user_id, "status":"Active"}, "property_id" ,as_dict=True)
 	short_prop = [sp.get("property_id") for sp in short_prop if sp]
 	for response in response_data:
 		if response.get("property_id") in short_prop:
