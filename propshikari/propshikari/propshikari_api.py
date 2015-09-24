@@ -294,7 +294,7 @@ def get_property_contact(request_data):
 								"contact_no": response.get("contact_no"),
 								"contact_person":response.get("contact_person")
 							}
-			create_lead_from_userid(request_data, email, response)
+			# create_lead_from_userid(request_data, email, response)
 			return {"operation":"Search", "message":"Contact Details found" if len(new_response) else "Contact Details Not Found", "user_id":request_data.get("user_id"), "data":new_response}
 		except elasticsearch.TransportError:
 			raise DoesNotExistError("Property Id does not exists")
