@@ -287,9 +287,15 @@ def get_property_contact(request_data):
 			raise MandatoryError("Mandatory Field Property Id missing")
 		try:
 			es = ElasticSearchController()
-			response = es.search_document_for_given_id("property",request_data.get("property_id"),[],["agent_name", "agent_no", "contact_no" ,"contact_person"])
-			create_lead_from_userid(request_data, email)
-			return {"operation":"Search", "message":"Contact Details found" if len(response) else "Contact Details Not Found", "user_id":request_data.get("user_id"), "data":response}
+			response = es.search_document_for_given_id("property",request_data.get("property_id"),[],[])
+			new_response = {
+								"agent_name":response.get("agent_name"),
+								"agent_no":response.get("agent_no"), 
+								"contact_no": response.get("contact_no"),
+								"contact_person":response.get("contact_person")
+							}
+			create_lead_from_userid(request_data, email, response)
+			return {"operation":"Search", "message":"Contact Details found" if len(new_response) else "Contact Details Not Found", "user_id":request_data.get("user_id"), "data":new_response}
 		except elasticsearch.TransportError:
 			raise DoesNotExistError("Property Id does not exists")
 		except Exception,e:

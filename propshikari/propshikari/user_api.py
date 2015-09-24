@@ -130,25 +130,26 @@ def get_user_profile(data):
 		user_data = frappe.db.sql(""" SELECT 
 											 ifnull(first_name, "") AS first_name,
 										     ifnull(last_name, "") AS last_name,
-										     ifnull(user_image,"") AS user_image,
+										     ifnull(user_image,"") AS profile_photo,
 										     ifnull(user_id,"") AS user_id,
 										     ifnull(email, "") AS email,
-										     ifnull(mobile_no, "") AS mobile_no,
+										     ifnull(mobile_no, "") AS mobile_number,
 										     ifnull(state, "") AS state,
 										     ifnull(city,"") AS city,
 										     ifnull(address, "") AS address,
 										     ifnull(area, "") AS area,
-										     ifnull(pincode, "") AS pincode,
-										     ifnull(birth_date, "") AS birth_date,
+										     ifnull(pincode, "") AS pin_code,
+										     ifnull(birth_date, "") AS dob,
 										     ifnull(lattitude,"") AS geo_location_lat,
 										     ifnull(longitude,"") AS geo_location_lon
 										FROM `tabUser`
 										WHERE user_id = '{0}'  """.format(request_data.get("user_id")),as_dict=True)
 		user_data = user_data[0]
-		if user_data.get("user_image"):
-			user_data["user_image"] = frappe.request.host_url + user_data.get("user_image")
+		if user_data.get("profile_photo"):
+			user_data["profile_photo"] = frappe.request.host_url + user_data.get("profile_photo")
 		user_data["city"] = frappe.db.get_value("City",user_data["city"],"city_name") or ""
 		user_data["location"] = frappe.db.get_value("Area",user_data["area"],"area") or ""
+		user_data.pop("area",None)
 		return {"operation":"Search", "message":"Profile Found", "data":user_data, "user_id":request_data.get("user_id")}	
 	except Exception,e:
 		raise GetUserProfileOperationFailed("User Profile Operation failed")	
