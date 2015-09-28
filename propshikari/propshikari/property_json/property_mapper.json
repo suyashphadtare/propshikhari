@@ -65,7 +65,7 @@
   },
   "property_age": {
     "is_mandatory": false,
-    "field_type": "number"
+    "field_type": "string"
   },
   "furnishing_type": {
     "is_mandatory": false,
