@@ -22,6 +22,8 @@ from api_handler.api_handler.exceptions import *
 
 
 
+
+
 def post_property(data):
 	if data:
 		try:
@@ -65,21 +67,47 @@ def post_property(data):
 
 def search_property(data):
 	if data:
-		old_property_data = json.loads(data)
-		property_data = putil.validate_property_posting_data(old_property_data,"property_json/property_search.json")
+		property_data = json.loads(data)
+		property_data = putil.validate_property_posting_data(property_data, "property_json/property_search.json")
 		putil.isolate_city_from_location(property_data)
 		try:	
+			
+			# generate search query & result generation & list of fields which should be excluded.
+
+			exclude_list = ["agent_name", "agent_no", "contact_no", "contact_person", "created_by", 
+				"modified_by", "creation_date", "modified_date", "posted_datetime", "modified_datetime"]
+
 			search_query = putil.generate_search_query(property_data)
 			es = ElasticSearchController()
-			response_data, total_records = es.search_document(["property"], search_query, old_property_data.get("page_number",1), old_property_data.get("records_per_page",40))
-			request_id = store_request_in_elastic_search(property_data, search_query, "Property Search")
-			if old_property_data.get("user_id") != "Guest":				
-				response_data = check_for_shortlisted_property(response_data,old_property_data.get("user_id"))
+			response_data, total_records = es.search_document(["property"], search_query, property_data.get("page_number",1), property_data.get("records_per_page",40), exclude_list)
+			
+			# post property-search operation
+
+			if not property_data.get("request_id"):	
+				request_id = store_request_in_elastic_search(property_data, search_query, "Property Search")
+			if property_data.get("user_id") != "Guest":				
+				response_data = check_for_shortlisted_property(response_data,property_data.get("user_id"))
 			response_data = putil.get_date_diff_from_posting(response_data)
+			
+			# response data & pagination logic
+
 			response_msg = "Property found for specfied criteria" if len(response_data) else "Property not found"
-			from_record = (old_property_data.get("page_number",1) - 1) * cint(old_property_data.get("records_per_page",40)) + 1
-			no_of_pages = math.ceil(flt(total_records)/old_property_data.get("records_per_page",40))
-			return {"operation":"Search", "message":response_msg ,"total_records":total_records, "request_id":request_id, "records_per_page":old_property_data.get("records_per_page",40),"from_record":from_record ,"to_record":from_record +  len(response_data) - 1 if response_data else from_record + old_property_data.get("records_per_page",40) - 1,"data":response_data, "user_id":old_property_data.get("user_id"), "no_of_pages":no_of_pages}
+			from_record = ( property_data.get("page_number",1) - 1 ) * cint( property_data.get("records_per_page",40) ) + 1
+			no_of_pages = math.ceil( flt(total_records) / property_data.get("records_per_page",40))
+			to_record = (from_record +  len(response_data) - 1) if response_data else ( from_record + property_data.get("records_per_page",40) - 1)
+			return {
+						"operation":"Search", 
+						"message":response_msg ,
+						"total_records":total_records, 
+						"request_id":property_data.get("request_id") if property_data.get("request_id") else request_id, 
+						"records_per_page":property_data.get("records_per_page",40),
+						"from_record":from_record ,
+						"to_record":to_record,
+						"data":response_data, 
+						"user_id":property_data.get("user_id"), 
+						"no_of_pages":no_of_pages
+					}
+		
 		except elasticsearch.RequestError,e:
 			raise ElasticInvalidInputFormatError(e.error)
 		except elasticsearch.ElasticsearchException,e:
@@ -245,19 +273,36 @@ def make_conditions_for_group_search(response):
 	return group_search_conditions
 
 
+
+
+""" Get property details of given pproperty Id """
+
+
 def get_property_of_given_id(request_data):
 	if request_data:
 		request_data = json.loads(request_data)
 		email = putil.validate_for_user_id_exists(request_data.get("user_id"))
 		try:
+			exclude_list = ["agent_name", "agent_no", "contact_no", "contact_person", "created_by", 
+							"modified_by", "creation_date", "modified_date", "posted_datetime", "modified_datetime", 
+							"full_size_images", "thumbnails"]
 			es = ElasticSearchController()
-			response = es.search_document_for_given_id("property",request_data.get("property_id"), ["property_photos"])
-			return {"operation":"Search", "message":"Property found" if len(response) else "Property Not Found", "user_id":request_data.get("user_id"), "data":response}
+			response = es.search_document_for_given_id("property",request_data.get("property_id"), exclude_list)
+			return {
+						"operation":"Search",
+						"message":"Property found" if len(response) else "Property Not Found", 
+						"user_id":request_data.get("user_id"), 
+						"data":response
+					 }
 		except elasticsearch.TransportError:
 			raise DoesNotExistError("Property Id does not exists")
 		except Exception,e:
 			raise GetPropertyOperationFailed("Get Property Operation Failed")
 
+
+
+
+"""  Get property details having particular tag  """
 
 
 def get_property_of_particular_tag(request_data):
@@ -266,12 +311,29 @@ def get_property_of_particular_tag(request_data):
 		if not request_data.get("tag"):
 			raise MandatoryError("Mandatory Field Tag missing")
 		try:
+			
+			exclude_list = ["agent_name", "agent_no", "contact_no", "contact_person", "created_by", 
+				"modified_by", "creation_date", "modified_date", "posted_datetime", "modified_datetime"]
+
 			search_query = { "query":{ "match":{ "tag":request_data.get("tag") } }  } 
 			es = ElasticSearchController()
-			response_data, total_records = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40))	
+			response_data, total_records = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40),exclude_list)	
 			response_msg = "Property found for specfied criteria" if len(response_data) else "Property not found"
 			from_record = (request_data.get("page_number",1) - 1) * cint(request_data.get("records_per_page",40)) + 1
-			return {"operation":"Search", "message":response_msg ,"total_records":total_records, "records_per_page":request_data.get("records_per_page",40),"from_record":from_record ,"to_record": from_record +  len(response_data) - 1 if response_data else from_record + request_data.get("records_per_page",40) - 1,"data":response_data, "user_id":request_data.get("user_id"), "tag":request_data.get("tag")}
+			to_record = from_record +  len(response_data) - 1 if response_data else from_record + request_data.get("records_per_page",40) - 1
+			no_of_pages = math.ceil( flt(total_records) / request_data.get("records_per_page",40))
+			return {
+						"operation":"Search", 
+						"message":response_msg ,
+						"total_records":total_records, 
+						"records_per_page":request_data.get("records_per_page",40),
+						"from_record":from_record ,
+						"to_record": to_record,
+						"data":response_data, 
+						"user_id":request_data.get("user_id"), 
+						"tag":request_data.get("tag"),
+						"no_of_pages":no_of_pages
+					}
 		except elasticsearch.ElasticsearchException,e:
 			raise ElasticSearchException(e.error)
 		except Exception,e:
@@ -279,7 +341,16 @@ def get_property_of_particular_tag(request_data):
 
 
 
+
+
 def get_property_contact(request_data):
+
+	"""
+		Get Contact person name, contact_no form property &
+		generate lead & enquiry against that user. 
+
+	"""
+
 	if request_data:
 		request_data = json.loads(request_data)
 		email = putil.validate_for_user_id_exists(request_data.get("user_id"))	
@@ -288,44 +359,78 @@ def get_property_contact(request_data):
 		try:
 			es = ElasticSearchController()
 			response = es.search_document_for_given_id("property",request_data.get("property_id"),[],[])
-			new_response = {
-								"agent_name":response.get("agent_name"),
-								"agent_no":response.get("agent_no"), 
-								"contact_no": response.get("contact_no"),
-								"contact_person":response.get("contact_person")
-							}
-			# create_lead_from_userid(request_data, email, response)
-			return {"operation":"Search", "message":"Contact Details found" if len(new_response) else "Contact Details Not Found", "user_id":request_data.get("user_id"), "data":new_response}
+			new_response = { "contact_no": response.get("contact_no"), "contact_person":response.get("contact_person")}
+			create_lead_from_userid(request_data, email, response)
+			return {	
+						"operation":"Search",
+						"message":"Contact Details found" if len(new_response) else "Contact Details Not Found", 
+						"user_id":request_data.get("user_id"), 
+						"data":new_response
+					}
 		except elasticsearch.TransportError:
 			raise DoesNotExistError("Property Id does not exists")
 		except Exception,e:
 			raise e
 
 
+
+
+
+"""  Get properties which are shortlisted by particular User  """
+
+
 def get_shortlisted_property(request_data):
 	if request_data:
 		request_data = json.loads(request_data)
+		
+		# Check if shortlisted property existed against user 
+
 		email = putil.validate_for_user_id_exists(request_data.get("user_id"))
 		property_ids_list = frappe.db.get_values("Shortlisted Property", {"user_id":request_data.get("user_id"), "status":"Active"}, "property_id")
 		if not property_ids_list:
 			return {"operation":"Search", "message":"No Single Shortlisted property found", "user_id":request_data.get("user_id")}
 		property_ids_list = [ property_id[0] for property_id in property_ids_list if property_id]
 		try:
+			# generate search_query and resultset & fields to be included in response 
+
+			sp_include_fields= ["property_photo", "city", "location", "carpet_area", "amenities", "no_of_floors",
+					"floor_no", "price_per_sq_ft", "property_id", "property_title", "tag"]
+
 			search_query = { "query":{ "ids":{ "values":property_ids_list } }  } 
 			es = ElasticSearchController()
-			response_data, total_records = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40))	
+			response_data, total_records = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40), [], sp_include_fields)	
+			
+			# response data & pagination logic 
+
 			for response in response_data:
 				new_list = response.get("tag",[])
 				new_list.append("Shortlisted")
 				response["tag"] = new_list
 			response_msg = "Shortlisted Property Found" if len(response_data) else "Shortlsited Property not found"
 			from_record = (request_data.get("page_number",1) - 1) * cint(request_data.get("records_per_page",40)) + 1
-			return {"operation":"Search", "message":response_msg ,"total_records":total_records, "records_per_page":request_data.get("records_per_page",40),"from_record":from_record ,"to_record": from_record +  len(response_data) - 1 if response_data else from_record + request_data.get("records_per_page",40) - 1,"data":response_data, "user_id":request_data.get("user_id")}
+			to_record = from_record +  len(response_data) - 1 if response_data else from_record + request_data.get("records_per_page",40) - 1
+			no_of_pages = math.ceil( flt(total_records) / request_data.get("records_per_page",40))
+			return {
+						"operation":"Search", 
+						"message":response_msg ,
+						"total_records":total_records, 
+						"records_per_page":request_data.get("records_per_page",40),
+						"from_record":from_record ,
+						"to_record": to_record,
+						"no_of_pages":no_of_pages,
+						"data":response_data, 
+						"user_id":request_data.get("user_id")
+					}
 		except elasticsearch.ElasticsearchException,e:
 			raise ElasticSearchException(e.error)
 		except Exception,e:
 		 	raise OperationFailed("Get Shortlisted Property Operation Failed")
 
+
+
+
+
+"""  Get properties which are posted by particular user only  """
 
 
 def get_user_properties(request_data):
@@ -334,12 +439,33 @@ def get_user_properties(request_data):
 		email = putil.validate_for_user_id_exists(request_data.get("user_id"))
 		search_query =  { "query": { "match":{ "posted_by":request_data.get("user_id") } } }
 		try:
+
+			# fields_to_be_excluded from response and resultset generation 
+
+			exclude_list = ["agent_name", "agent_no", "contact_no", "contact_person", "created_by", 
+				"modified_by", "creation_date", "modified_date", "posted_datetime", "modified_datetime"]
+			
 			es = ElasticSearchController()
-			response_data, total_records  = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40))
+			response_data, total_records  = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40), exclude_list)
 			response_data = check_for_shortlisted_property(response_data, request_data.get("user_id"))
+			
+			# response data & pagination logic
+
 			response_msg = "User Property Found" if len(response_data) else "User Property not found"
 			from_record = (request_data.get("page_number",1) - 1) * cint(request_data.get("records_per_page",40)) + 1 
-			return {"operation":"Search", "message":response_msg ,"total_records":total_records, "records_per_page":request_data.get("records_per_page",40),"from_record":from_record ,"to_record": from_record +  len(response_data) - 1 if response_data else from_record + request_data.get("records_per_page",40) - 1,"data":response_data, "user_id":request_data.get("user_id")}
+			to_record = from_record +  len(response_data) - 1 if response_data else from_record + request_data.get("records_per_page",40) - 1
+			no_of_pages =  math.ceil( flt(total_records) / request_data.get("records_per_page",40))
+			return {
+						"operation":"Search",
+						"message":response_msg ,
+						"total_records":total_records, 
+						"records_per_page":request_data.get("records_per_page",40),
+						"from_record":from_record ,
+						"to_record": to_record,
+						"no_of_pages":no_of_pages,
+						"data":response_data,
+						"user_id":request_data.get("user_id")
+					}
 		except elasticsearch.ElasticsearchException,e:
 			raise ElasticSearchException(e.error)
 		except Exception,e:
@@ -445,12 +571,19 @@ def get_similar_properties(request_data):
 			raise InvalidDataError("Request type contains Invalid Data")
 		search_query = search_dict.get(request_data.get("request_type"))(request_data)
 		try:
+			
+			sp_include_fields = ["property_photo", "property_id", "location", "address",
+			                      "city", "carpet_area", "price" ]
 			es = ElasticSearchController()
-			response_data, total_records = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",3))
-			from_record =  ((request_data.get("page_number",1) - 1) * cint(request_data.get("records_per_page",3)) + 1 )
+			response_data, total_records = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",4), [], sp_include_fields)
 			response_msg = "Similar Property Found" if response_data else "Similar property not found"
-			no_of_pages = math.ceil(flt(total_records)/request_data.get("records_per_page",3))
-			return {"operation":"Search", "message":response_msg ,"total_records":total_records,"records_per_page":request_data.get("records_per_page",3),"from_record":from_record ,"to_record": from_record +  len(response_data) - 1 if response_data else from_record + request_data.get("records_per_page",3) - 1 ,"data":response_data, "user_id":request_data.get("user_id"), "no_of_pages":no_of_pages}
+			return {
+						"operation":"Search", 
+						"message":response_msg ,
+						"total_records":len(response_data),
+						"data":response_data, 
+						"user_id":request_data.get("user_id")
+					}
 		except elasticsearch.ElasticsearchException,e:
 			raise ElasticSearchException(e.error)
 		except Exception,e:
@@ -479,57 +612,117 @@ def get_search_query_of_request_id(request_data):
 		raise DoesNotExistError("Request Id does not exists")
 	except elasticsearch.ElasticsearchException,e:
 		raise ElasticSearchException(e.error)		
+
+
+
 		
 
 def get_alerts(request_data):
+	
+	"""
+		Get property alerts based on two types
+		 1. Check if alert is already set against that user else
+		 2. Check for last search request & based on that search request
+		    show properties to user. 
+	"""
+
 	if request_data:
 		request_data = json.loads(request_data)
 		email = putil.validate_for_user_id_exists(request_data.get("user_id"))
 		alert = frappe.db.sql("select * from `tabAlerts` where user_id='{0}' order by creation desc limit 1".format(request_data.get("user_id")),as_dict=1)
 		try:
 			if alert:
-				property_search_query = putil.generate_search_query(alert[0])
-				new_query = property_search_query.get("query").get("bool").get("must")
-				new_query.append({
-								    "range" : {
-								        "posted_datetime" : {
-								            "gte": alert[0].get("creation").strftime("%Y-%m-%d %H:%M:%S"),
-								        }
-								    }
-								})
-				property_search_query["query"]["bool"]["must"] = new_query
+				property_search_query = get_alerts_based_on_alert_doctype(alert)
 			else:
-				search_query = {	
-									"sort": [{ "posted_datetime": { "order": "desc" }}],
-									"query":{ "bool":{ "must":[ {"match":{ "user_id":request_data.get("user_id")  } } ] }    } 
-								}						
-				es = ElasticSearchController()
-				response_data, total_records = es.search_document(["request"], search_query, 1, 1)
-				if response_data:
-					last_month_date = add_months(datetime.datetime.now() ,-1).strftime("%Y-%m-%d %H:%M:%S")
-					property_search_query = response_data[0].get("search_query")
-					property_search_query = ast.literal_eval(property_search_query.encode("utf8"))
-					new_query = property_search_query.get("query").get("bool").get("must")
-					new_query.append({
-										    "range" : {
-										        "posted_datetime" : {
-										            "gte":last_month_date,
-										        }
-										    }
-										})
-					property_search_query["query"]["bool"]["must"] = new_query
-				else:
-					raise OperationFailed("No Alerts and Request Id found against User {0}".format(email))
+				property_search_query = get_alerts_based_on_last_request(request_data, email)
+			
+			# fields to be included in response and resultset generation
+
+			include_fields_list = ["property_id", "property_title", "price", "property_photo", "location", "city"]		
 			es = ElasticSearchController()
-			response_data, total_records = es.search_document(["property"], property_search_query, request_data.get("page_number",1), request_data.get("records_per_page",40))
+			response_data, total_records = es.search_document(["property"], property_search_query, request_data.get("page_number",1), request_data.get("records_per_page",40), [], include_fields_list)
+			
+			#  response generation and pagination logic 
+
 			from_record =  ((request_data.get("page_number",1) - 1) * cint(request_data.get("records_per_page",40)) + 1 )
+			to_record = from_record +  len(response_data) - 1 if response_data else from_record + request_data.get("records_per_page",40) - 1
 			response_msg = "Property Found" if response_data else "Property not found"
 			no_of_pages = math.ceil(flt(total_records)/request_data.get("records_per_page",40))
-			return {"operation":"Search", "message":response_msg ,"total_records":total_records,"records_per_page":request_data.get("records_per_page",40),"from_record":from_record ,"to_record": from_record +  len(response_data) - 1 if response_data else from_record + request_data.get("records_per_page",40) - 1 ,"data":response_data, "user_id":request_data.get("user_id"), "no_of_pages":no_of_pages}
+			return {
+						"operation":"Search", 
+						"message":response_msg ,
+						"total_records":total_records,
+						"records_per_page":request_data.get("records_per_page",40),
+						"from_record":from_record ,
+						"to_record":to_record,
+						"data":response_data, 
+						"user_id":request_data.get("user_id"), 
+						"no_of_pages":no_of_pages
+					}
 		except elasticsearch.ElasticsearchException,e:
 			raise ElasticSearchException(e.error)
 		except Exception,e:
 			raise e
+
+
+
+
+
+def get_alerts_based_on_alert_doctype(alert):
+	
+	"""
+		Generate search query from alert set by user &
+		check for properties which are posted after creation date of alert only.  
+	"""
+
+	property_search_query = putil.generate_search_query(alert[0])
+	new_query = property_search_query.get("query").get("bool").get("must")
+	new_query.append({
+					    "range" : {
+					        "posted_datetime" : {
+					            "gte": alert[0].get("creation").strftime("%Y-%m-%d %H:%M:%S"),
+					        }
+					    }
+					})
+	property_search_query["query"]["bool"]["must"] = new_query
+	return property_search_query
+
+
+
+
+def get_alerts_based_on_last_request(request_data, email):
+	
+	"""
+		Generate search query from last search request of that user &
+		check for properties which are posted from last month only. 
+	"""
+
+	try:
+		search_query = {	
+							"sort": [{ "posted_datetime": { "order": "desc" }}],
+							"query":{ "bool":{ "must":[ {"match":{ "user_id":request_data.get("user_id")  } } ] }    } 
+						}						
+		es = ElasticSearchController()
+		response_data, total_records = es.search_document(["request"], search_query, 1, 1)
+		if response_data:
+			last_month_date = add_months(datetime.datetime.now() ,-1).strftime("%Y-%m-%d %H:%M:%S")
+			property_search_query = response_data[0].get("search_query")
+			property_search_query = ast.literal_eval(property_search_query.encode("utf8"))
+			new_query = property_search_query.get("query").get("bool").get("must")
+			new_query.append({
+								    "range" : {
+								        "posted_datetime" : {
+								            "gte":last_month_date,
+								        }
+								    }
+								})
+			property_search_query["query"]["bool"]["must"] = new_query
+			return property_search_query
+		else:
+			raise OperationFailed("No Alerts and Request Id found against User {0}".format(email))
+	except elasticsearch.ElasticsearchException,e:
+		raise ElasticSearchException(e.error)		
+
 
 
 

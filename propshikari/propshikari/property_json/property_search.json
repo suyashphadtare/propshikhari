@@ -35,8 +35,29 @@
     "is_mandatory": false,
     "field_type": "number"
   },
+  "unit_of_area":{
+    "is_mandatory": false,
+    "field_type": "string"
+  },
   "user_id":{
     "is_mandatory": false,
     "field_type": "string"
+  },
+  "sid":{
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "page_number":{
+    "is_mandatory": false,
+    "field_type": "number"
+  },
+  "records_per_page":{
+    "is_mandatory": false,
+    "field_type": "number"
+  },
+  "request_id":{
+    "is_mandatory": false,
+    "field_type": "string"
   }
+
  } 

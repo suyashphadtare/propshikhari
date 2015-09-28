@@ -144,14 +144,17 @@ def generate_search_query_from_property_data(property_data):
 
 
 def validate_for_postings_available(email):
-	subs_name = frappe.db.get_value("User Subscription",{"user":email},"name")
-	if subs_name:
-		subs_doc = frappe.get_doc("User Subscription",subs_name)
-		remaining = cint(subs_doc.allowed) - cint(subs_doc.posted)
-		if remaining == 0:
-			raise ValidationError("Posting Limit Exhausted")
-		else:
-			return subs_doc					 
+	role_list = frappe.db.get_values("UserRole",{"parent":email}, "role",as_dict=True)
+	role_list = [role.get("role") for role in role_list if role.get("role")]
+	if "System Manager" not in role_list:
+		subs_name = frappe.db.get_value("User Subscription",{"user":email},"name")
+		if subs_name:
+			subs_doc = frappe.get_doc("User Subscription",subs_name)
+			remaining = cint(subs_doc.allowed) - cint(subs_doc.posted)
+			if remaining == 0:
+				raise ValidationError("Posting Limit Exhausted")
+			else:
+				return subs_doc					 
 
 def get_subscriptions(user):
 	subs_dic = {}

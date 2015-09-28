@@ -43,7 +43,7 @@ def get_amenities(data):
 		
 		response_msg = "Amenities Not Found" if len(amenities_list) == 0 else "Amenities Found"
 			
-		return {"operation":"Search","message":response_msg,"data":amenities_list}
+		return {"operation":"Search","message":response_msg,"data":amenities_list, "user_id":data.get("user_id")}
 
 
 """
@@ -61,7 +61,7 @@ def get_flat_facilities(data):
 		
 		response_msg = "Flat Facilities Not Found" if len(facilities_list) == 0 else "Flat Facilities Found"
 			
-		return {"operation":"Search","message":response_msg,"data":facilities_list}
+		return {"operation":"Search","message":response_msg,"data":facilities_list, "user_id":data.get("user_id")}
 
 
 def get_types():
@@ -305,7 +305,8 @@ def generate_title(request_data):
 def create_lead_from_userid(request_data, email, response):
 	user_data = frappe.db.get_value("User", {"email":email}, '*',as_dict=True)
 	try:
-		if not frappe.db.get_value("Lead",{"email_id":email},"name"):
+		lead_name = frappe.db.get_value("Lead",{"email_id":email},"name")
+		if not lead_name:
 			lead = frappe.new_doc("Lead")
 			lead.lead_name = user_data.get("first_name")
 			lead.email_id = user_data.get("email")
@@ -314,8 +315,16 @@ def create_lead_from_userid(request_data, email, response):
 			lead.state = user_data.get("state")
 			lead.city = user_data.get("city")
 			lead.save(ignore_permissions=True)
-			address_nm = create_lead_address_from_user_data(user_data, lead.name)
-			create_enquiry(user_data, lead.name, address_nm, response)
+			lead_name = lead.name
+			address_nm = create_lead_address_from_user_data(user_data, lead_name)
+		if not frappe.db.sql(""" select e.name from 
+									`tabEnquiry` e , `tabProperty Details` pd
+									where  pd.parent = e.name 
+									and pd.property_id = '{0}'
+									and e.lead = '{1}'
+			                  """.format(response.get("property_id"), lead_name)):
+			address_nm = frappe.db.get_value("Address", {"is_primary_address":1, "lead":lead_name},"name") 
+			create_enquiry(user_data, lead_name, address_nm, response)
 	except Exception,e:
 		print "lead & Enquiry creation Error"
 		print response.get("property_id")
@@ -372,3 +381,23 @@ def create_enquiry(user_data, lead, address, property_details):
 	enq.flags.ignore_permissions = True
 	enq.insert()
 
+
+
+
+
+
+def create_contact_us_record(request_data):
+
+	"""   Store User email_id , name, mobile no & message in contact us doctype.    """
+
+	try:
+		request_data = json.loads(request_data)
+		cs = frappe.new_doc("Contact Us")
+		cs.customer_name = request_data.get("name")
+		cs.mobile_no = request_data.get("mobile_number")
+		cs.message = request_data.get("message")
+		cs.email_id = request_data.get("email_id")
+		cs.save(ignore_permissions=True)
+		return {"message":"Contact Submitted","user_id":request_data.get("user_id")}
+	except Exception,e:
+		raise OperationFailed("Contact Us operation failed")	

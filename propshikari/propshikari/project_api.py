@@ -27,8 +27,10 @@ def get_project_of_given_id(request_data):
 	if not request_data.get("project_id"):
 		raise MandatoryError("Project id does not exists") 
 	try:
+		project_fields = ["project_id", "project_name", "project_type", "project_by", "project_subtype",
+						   "property_details","website", "contact_no", "email_id", "contact_person", "project_photo"]
 		es = ElasticSearchController()
-		response = es.search_document_for_given_id("project",request_data.get("project_id"))
+		response = es.search_document_for_given_id("project", request_data.get("project_id"), [], project_fields)
 		response["properties"]= {}
 		for prop in response.get("property_details"):
 			if not response["properties"].has_key(prop.get("property_type")):
@@ -36,7 +38,7 @@ def get_project_of_given_id(request_data):
 			else:
 				response["properties"][prop.get("property_type")]["option"][prop.get("property_subtype_option")] = 	{ "count":prop.get("count"), "area":prop.get("carpet_area")} 
 		response.pop("property_details")
-		return {"operation":"Search", "message":"Project found" if len(response) else "Project Not Found", "user_id":request_data.get("user_id"), "data":response}
+		return {"operation":"Search", "message":"Project details found" if len(response) else "Project Not Found", "user_id":request_data.get("user_id"), "data":response}
 	except elasticsearch.TransportError:
 		raise DoesNotExistError("Project Id does not exists")
 	except Exception,e:
@@ -61,21 +63,27 @@ def search_project(request_data):
 		putil.isolate_city_from_location(project_data)
 		search_query = putil.generate_project_search_query(project_data)
 		try:
+
+			exclude_list = ["agent_name", "agent_no", "contact_no", "contact_person", "created_by", 
+				"modified_by", "creation_date", "modified_date", "posted_datetime", "modified_datetime"]
+
 			es = ElasticSearchController()
-			response_data, total_records = es.search_document(["project"], search_query, project_data.get("page_number",1), project_data.get("records_per_page",40))
-			request_id = store_request_in_elastic_search(project_data, search_query, "Project Search")
+			response_data, total_records = es.search_document(["project"], search_query, project_data.get("page_number",1), project_data.get("records_per_page",40), exclude_list)
+			if not project_data.get("request_id"):	
+				request_id = store_request_in_elastic_search(project_data, search_query, "Project Search")
 			response_data = putil.get_date_diff_from_posting(response_data)
 			response_msg = "Project found for specfied criteria" if len(response_data) else "Project not found"
 			from_record = (project_data.get("page_number",1) - 1) * cint(project_data.get("records_per_page",40)) + 1
 			no_of_pages = math.ceil(flt(total_records)/project_data.get("records_per_page",40))
+			to_record = from_record +  len(response_data) - 1 if response_data else from_record + project_data.get("records_per_page",40) - 1
 			return {	
 						"operation":"Search",
 						 "message":response_msg ,
 						 "total_records":total_records, 
-						 "request_id":request_id, 
+						 "request_id":project_data.get("request_id") if project_data.get("request_id") else request_id, 
 						 "records_per_page":project_data.get("records_per_page",40),
 						 "from_record":from_record ,
-						 "to_record":from_record +  len(response_data) - 1 if response_data else from_record + project_data.get("records_per_page",40) - 1,
+						 "to_record":to_record,
 						 "data":response_data, 
 						 "user_id":project_data.get("user_id"), 
 						 "no_of_pages":no_of_pages
