@@ -20,7 +20,7 @@
     "field_type": "string"
   },
   "address": {
-    "is_mandatory": true,
+    "is_mandatory": false,
     "field_type": "string"
   },
   "carpet_area": {

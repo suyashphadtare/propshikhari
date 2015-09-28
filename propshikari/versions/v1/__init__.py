@@ -179,6 +179,12 @@ def validate_session(data):
 
 
 @frappe.whitelist(allow_guest=True)
+def create_contact(data):
+	return masters.create_contact_us_record(data)
+
+
+
+@frappe.whitelist(allow_guest=True)
 def reindex_data(data):
 	return api.reindex_data(data)						
 

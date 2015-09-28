@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
 import frappe
-from frappe.utils import cstr, cint
+from frappe.utils import cstr, cint, getdate
 import property_utils as putil
 import json
 import time
@@ -43,7 +43,7 @@ def get_amenities(data):
 		
 		response_msg = "Amenities Not Found" if len(amenities_list) == 0 else "Amenities Found"
 			
-		return {"operation":"Search","message":response_msg,"data":amenities_list}
+		return {"operation":"Search","message":response_msg,"data":amenities_list, "user_id":data.get("user_id")}
 
 
 """
@@ -61,7 +61,7 @@ def get_flat_facilities(data):
 		
 		response_msg = "Flat Facilities Not Found" if len(facilities_list) == 0 else "Flat Facilities Found"
 			
-		return {"operation":"Search","message":response_msg,"data":facilities_list}
+		return {"operation":"Search","message":response_msg,"data":facilities_list, "user_id":data.get("user_id")}
 
 
 def get_types():
@@ -302,33 +302,102 @@ def generate_title(request_data):
 
 
 
-def create_lead_from_userid(request_data, email):
-	user_data = frappe.db.get_values("User", {"email":email}, '*')
+def create_lead_from_userid(request_data, email, response):
+	user_data = frappe.db.get_value("User", {"email":email}, '*',as_dict=True)
 	try:
-		lead = frappe.new_doc("Lead")
-		lead.lead_name = user_data.get("first_name")
-		lead.lead_from = "Propshikari"
-		lead.save(ignore_permissions=True)
-		address_nm = create_lead_address_from_user_data(user_data, lead.name)
-	except frappe.MandatoryError,e:
-		raise MandatoryError("Mandatory Field {0} missing".format(e.message))
-	except (frappe.LinkValidationError, frappe.ValidationError)  as e:
-		raise InvalidDataError(e.message)
+		lead_name = frappe.db.get_value("Lead",{"email_id":email},"name")
+		if not lead_name:
+			lead = frappe.new_doc("Lead")
+			lead.lead_name = user_data.get("first_name")
+			lead.email_id = user_data.get("email")
+			lead.lead_from = "Propshikari"
+			lead.mobile_no = user_data.get("mobile_no")
+			lead.state = user_data.get("state")
+			lead.city = user_data.get("city")
+			lead.save(ignore_permissions=True)
+			lead_name = lead.name
+			address_nm = create_lead_address_from_user_data(user_data, lead_name)
+		if not frappe.db.sql(""" select e.name from 
+									`tabEnquiry` e , `tabProperty Details` pd
+									where  pd.parent = e.name 
+									and pd.property_id = '{0}'
+									and e.lead = '{1}'
+			                  """.format(response.get("property_id"), lead_name)):
+			address_nm = frappe.db.get_value("Address", {"is_primary_address":1, "lead":lead_name},"name") 
+			create_enquiry(user_data, lead_name, address_nm, response)
 	except Exception,e:
-		raise OperationFailed("Lead Creation failed")
+		print "lead & Enquiry creation Error"
+		print response.get("property_id")
+		print frappe.get_traceback()
+
 
 
 def create_lead_address_from_user_data(user_data, lead):
 	if user_data.get("city") and user_data.get("area"):
-		try:
-			addr = frappe.new_doc("Address")
-			addr.address_line1 = user_data.get("area")
-			addr.address_line2 = user_data.get("address")
-			addr.city = frappe.db.get_value("City", user_data.get("city"), "city_name")
-			addr.state = user_data.get("state")
-			addr.email_id = user_data.get("email")
-			addr.pincode = user_data.get("pincode")
-			addr.lead = lead
-			addr.save(ignore_permissions=True)
-		except (frappe.LinkValidationError, frappe.ValidationError)  as e:
-			raise InvalidDataError(e.message)		
+		addr = frappe.new_doc("Address")
+		addr.address_line1 = frappe.db.get_value("Area", user_data.get("area"), "area")
+		addr.address_line2 = user_data.get("address")
+		addr.city = frappe.db.get_value("City", user_data.get("city"), "city_name")
+		addr.state = user_data.get("state")
+		addr.email_id = user_data.get("email")
+		addr.pincode = user_data.get("pincode")
+		addr.lead = lead
+		addr.lead_name = user_data.get("first_name")
+		addr.save(ignore_permissions=True)
+		return addr.name
+
+
+
+def create_enquiry(user_data, lead, address, property_details):
+	enquiry_child_row = [{
+					"property_id"     :	property_details.get("property_id"),
+					"property_type"   :	property_details.get("property_type"),
+					"property_subtype": property_details.get("property_subtype"),
+					"bhk"             : property_details.get("property_subtype_option",""),
+					"property_name"   :	property_details.get("property_title"),
+					"posting_date"    :	getdate(property_details.get("posting_date")) if property_details.get("posting_date") else "",
+					"location"        : property_details.get("location"),
+					"address"         : property_details.get("address"),
+					"area"            : property_details.get("carpet_area"),
+					"price"           : property_details.get("price"),
+					"bathroom"        : property_details.get("no_of_bathroom")
+			}]
+	enq = frappe.get_doc({
+					"doctype":"Enquiry",
+					"lead":lead,
+					"lead_name": user_data.get("first_name") + " " + user_data.get("last_name",""),
+					"address":address if address else "",
+					"property_type":property_details.get("property_type"),
+					"property_subtype":property_details.get("property_subtype"),
+					"property_subtype_option":property_details.get("property_subtype_option",""),
+					"location":property_details.get("location"),
+					"budget_minimum":0,
+					"budget_maximum": property_details.get("price"),
+					"area_minimum":0,
+					"area_maximum":property_details.get("carpet_area"),
+					"enquiry_from":"Lead",
+					"property_details":enquiry_child_row
+				})
+	enq.flags.ignore_permissions = True
+	enq.insert()
+
+
+
+
+
+
+def create_contact_us_record(request_data):
+
+	"""   Store User email_id , name, mobile no & message in contact us doctype.    """
+
+	try:
+		request_data = json.loads(request_data)
+		cs = frappe.new_doc("Contact Us")
+		cs.customer_name = request_data.get("name")
+		cs.mobile_no = request_data.get("mobile_number")
+		cs.message = request_data.get("message")
+		cs.email_id = request_data.get("email_id")
+		cs.save(ignore_permissions=True)
+		return {"message":"Contact Submitted","user_id":request_data.get("user_id")}
+	except Exception,e:
+		raise OperationFailed("Contact Us operation failed")	

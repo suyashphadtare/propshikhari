@@ -31,6 +31,14 @@
     "is_mandatory": false,
     "field_type": "number"
   },
+  "unit_of_area":{
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "request_id":{
+    "is_mandatory": false,
+    "field_type": "string"
+  },
   "user_id":{
     "is_mandatory": false,
     "field_type": "string"
