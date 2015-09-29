@@ -398,6 +398,6 @@ def create_contact_us_record(request_data):
 		cs.message = request_data.get("message")
 		cs.email_id = request_data.get("email_id")
 		cs.save(ignore_permissions=True)
-		return {"message":"Contact Submitted","user_id":request_data.get("user_id")}
+		return {"message":"Contact Submitted","user_id":request_data.get("user_id"), "operation":"Create"}
 	except Exception,e:
 		raise OperationFailed("Contact Us operation failed")	
