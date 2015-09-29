@@ -3,7 +3,7 @@ import frappe
 from frappe.utils import cstr, cint, flt
 from elastic_controller import ElasticSearchController
 from frappe.utils import add_days, getdate, now, nowdate ,random_string ,add_months, date_diff
-from property_masters import create_lead_from_userid 
+from property_masters import create_lead_from_userid, make_conditions_for_duplicate_group
 from frappe.auth import _update_password
 import property_utils as putil
 import json ,ast
@@ -231,25 +231,52 @@ def store_property_photos_in_propshikari(request_data, custom_id):
 	return property_url_dict
 
 
+"""  
+	Search group according to given request_id also 
+	check whether user already joined group or not.
+
+"""
 
 
 def search_group_with_given_criteria(request_data):
 	if request_data:
 		request_data = json.loads(request_data)
 		email = putil.validate_for_user_id_exists(request_data.get("user_id"))
+		putil.validate_property_data(request_data, ["request_id"])
 		try:
 			es = ElasticSearchController()
 			response = es.search_document_for_given_id("request",request_data.get("request_id"))
-			group_search_conditions = make_conditions_for_group_search(response)
-			group_result = frappe.db.sql(""" select  name as group_id, operation, property_type , property_subtype , ifnull(property_subtype_option,"") as property_subtype_option ,ifnull(location,"") as location, ifnull(city,"") as city, ifnull(min_budget,"") as min_budget, ifnull(max_budget,"") as max_budget, ifnull(min_area,"") as min_area, ifnull(max_area,"") as max_area from `tabGroup` {0} """.format(group_search_conditions),as_dict=True)
+			group_search_conditions = make_conditions_for_duplicate_group(response)
+			group_result = frappe.db.sql(""" SELECT    
+												name AS group_id,
+												operation,
+												property_type,
+												property_subtype,
+												group_title,
+												ifnull(property_subtype_option, "") AS property_subtype_option,
+												ifnull(location, "") AS location,
+												ifnull(city, "") AS city,
+												ifnull(min_budget, "") AS min_budget,
+												ifnull(max_budget, "") AS max_budget,
+												ifnull(min_area, "") AS min_area,
+												ifnull(max_area, "") AS max_area
+											FROM `tabGroup` {0} """.format(group_search_conditions),as_dict=True)
 			for group in group_result:
 				join_flag = frappe.db.get_value("Group User" , {"group_id":group.get("group_id"), "user_id":request_data.get("user_id")},"name")
 				group["user_joined"] = 1 if join_flag else 0
-			return {"operation":"Search", "request_id":request_data.get("request_id"), "data":group_result, "message":"Matching Groups Found" if len(group_result) else "Group Not Found" }
+			group_result = group_result[0] if group_result else {} 
+			return {	
+						"operation":"Search", 
+						"request_id":request_data.get("request_id"), 
+						"data":group_result, 
+						"message":"Matching Group Found" if len(group_result) else "Group Not Found" 
+					}
 		except elasticsearch.TransportError:
 			raise DoesNotExistError("Request Id does not exists")
 		except Exception,e:
-			return SearchGroupOperationFailed("Search Group Operation Failed")
+			raise SearchGroupOperationFailed("Search Group Operation Failed")
+
+
 
 
 def make_conditions_for_group_search(response):
@@ -360,7 +387,7 @@ def get_property_contact(request_data):
 			es = ElasticSearchController()
 			response = es.search_document_for_given_id("property",request_data.get("property_id"),[],[])
 			new_response = { "contact_no": response.get("contact_no"), "contact_person":response.get("contact_person")}
-			create_lead_from_userid(request_data, email, response)
+			# create_lead_from_userid(request_data, email, response)
 			return {	
 						"operation":"Search",
 						"message":"Contact Details found" if len(new_response) else "Contact Details Not Found", 

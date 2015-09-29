@@ -97,7 +97,7 @@ def search_group(data):
 	return api.search_group_with_given_criteria(data)
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def get_individual_property(data):
 	return api.get_property_of_given_id(data)
 
@@ -160,7 +160,7 @@ def get_alerts(data):
 	return api.get_alerts(data)
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def get_project_details(data):
 	return projt.get_project_of_given_id(data)
 
