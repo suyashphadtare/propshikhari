@@ -244,7 +244,7 @@ def create_alerts(request_data):
 
 def make_conditions_for_duplicate_group(response):
 	group_search_conditions = "where operation='{0}' and property_subtype='{1}' and property_type='{2}'  and status = 'Active'   ".format(response.get("operation"),response.get("property_subtype"),response.get("property_type"))
-	group_field_set = {"property_subtype_option" ,"min_area", "max_area", "min_budget", "max_budget", "location", "city"}
+	group_field_set = {"property_subtype_option" ,"min_area", "max_area", "min_budget", "max_budget", "location", "city", "unit_of_area"}
 	request_field_set = set()
 
 	for group_field in group_field_set:
