@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 import frappe
 from frappe.utils import cstr, cint
-from frappe.utils import add_days, getdate, now, nowdate ,random_string ,add_months
+from frappe.utils import add_days, getdate, now, nowdate ,random_string ,add_months, getdate
 from frappe.auth import _update_password
 import property_utils as putil
 import json ,ast
@@ -138,7 +138,7 @@ def get_user_profile(data):
 										     ifnull(city,"") AS city,
 										     ifnull(address, "") AS address,
 										     ifnull(area, "") AS area,
-										     ifnull(pincode, "") AS pin_code,
+										     ifnull(pincode, "") AS pincode,
 										     ifnull(birth_date, "") AS dob,
 										     ifnull(lattitude,"") AS geo_location_lat,
 										     ifnull(longitude,"") AS geo_location_lon
@@ -161,7 +161,8 @@ def update_user_profile(data):
 	user_email = putil.validate_for_user_id_exists(request_data.get("user_id"))
 	city = frappe.db.get_value("City",{ "city_name":request_data.get("city") ,"state_name":request_data.get("state")}, "name")	
 	area = frappe.db.get_value("Area",{ "city_name":city ,"state_name":request_data.get("state"), "area":request_data.get("location")}, "name")
-	user_dict = {"first_name":request_data.get("first_name",""), "last_name":request_data.get("last_name",""), "mobile_no": request_data.get("mobile_number",""), "state": request_data.get("state",""), "city":city, "area":area, "address":request_data.get("address",""), "pincode":request_data.get("pin_code",""), "birth_date":request_data.get("dob",""),"lattitude":request_data.get("geo_location_lat"),"longitude":request_data.get("geo_location_lon")}
+	dob = getdate(request_data.get("dob")) if request_data.get("dob","") else ""  
+	user_dict = {"first_name":request_data.get("first_name",""), "last_name":request_data.get("last_name",""), "mobile_no": request_data.get("mobile_number",""), "state": request_data.get("state",""), "city":city, "area":area, "address":request_data.get("address",""), "pincode":request_data.get("pin_code",""), "birth_date":dob,"lattitude":request_data.get("geo_location_lat"),"longitude":request_data.get("geo_location_lon")}
 	try:
 		# user_dict["user_image"] = store_image_to_propshikari(request_data)
 		user_doc = frappe.get_doc("User",user_email)

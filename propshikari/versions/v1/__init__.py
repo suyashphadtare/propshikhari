@@ -173,6 +173,7 @@ def search_project(data):
 def remove_shortlisted_property(data):
 	return masters.remove_shortlisted_property(data)
 
+
 @frappe.whitelist()
 def validate_session(data):
 	return usr.validate_for_session_exists(data)
@@ -186,8 +187,23 @@ def create_contact(data):
 
 @frappe.whitelist(allow_guest=True)
 def reindex_data(data):
-	return api.reindex_data(data)						
+	return api.reindex_data(data)
 
+
+@frappe.whitelist(allow_guest=True)
+def update_property_tag(data):
+	return api.update_tags_of_property(data)							
+
+
+@frappe.whitelist(allow_guest=True)
+def get_area_coordinates(data):
+	return api.get_area_cordinates(data)
+
+
+
+@frappe.whitelist(allow_guest=True)
+def get_property_details(data):
+	return api.get_property_details(data)
 
 
 

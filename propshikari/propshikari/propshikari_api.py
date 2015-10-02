@@ -30,6 +30,7 @@ def post_property(data):
 			old_data = json.loads(data)
 			email = putil.validate_for_user_id_exists(old_data.get("user_id"))
 			subs_doc = putil.validate_for_postings_available(email)
+			putil.convert_area_to_sqft_for_posting(old_data)
 			data = putil.validate_property_posting_data(old_data,"property_json/property_mapper.json")
 			putil.validate_property_status(data.get("status"))
 			custom_id = "PROP-"  + cstr(int(time.time())) + '-' +  cstr(random.randint(10000,99999))
@@ -70,6 +71,7 @@ def search_property(data):
 		property_data = json.loads(data)
 		property_data = putil.validate_property_posting_data(property_data, "property_json/property_search.json")
 		putil.isolate_city_from_location(property_data)
+		putil.convert_area_to_sqft_for_search(property_data)
 		try:	
 			
 			# generate search query & result generation & list of fields which should be excluded.
@@ -78,6 +80,7 @@ def search_property(data):
 				"modified_by", "creation_date", "modified_date", "posted_datetime", "modified_datetime"]
 
 			search_query = putil.generate_search_query(property_data)
+			# return {"search_query":search_query}
 			es = ElasticSearchController()
 			response_data, total_records = es.search_document(["property"], search_query, property_data.get("page_number",1), property_data.get("records_per_page",40), exclude_list)
 			
@@ -88,6 +91,7 @@ def search_property(data):
 			if property_data.get("user_id") != "Guest":				
 				response_data = check_for_shortlisted_property(response_data,property_data.get("user_id"))
 			response_data = putil.get_date_diff_from_posting(response_data)
+			putil.convert_area_according_to_uom(response_data, property_data.get("unit_of_area", "Sq.Ft"))
 			
 			# response data & pagination logic
 
@@ -173,6 +177,7 @@ def store_request_in_elastic_search(property_data, search_query, request_type):
 		"min_budget":property_data.get("min_budget"), 
 		"max_budget":property_data.get("max_budget"),
 		"city":property_data.get("city"),
+		"unit_of_area":property_data.get("unit_of_area"),
 		"search_query":cstr(search_query),
 		"request_type":request_type
 
@@ -469,11 +474,11 @@ def get_user_properties(request_data):
 
 			# fields_to_be_excluded from response and resultset generation 
 
-			exclude_list = ["agent_name", "agent_no", "contact_no", "contact_person", "created_by", 
-				"modified_by", "creation_date", "modified_date", "posted_datetime", "modified_datetime"]
+			include_list = ["property_photo", "city", "location", "carpet_area", "amenities", "no_of_floors",
+					"floor_no", "price_per_sq_ft", "property_id", "property_title", "tag"]
 			
 			es = ElasticSearchController()
-			response_data, total_records  = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40), exclude_list)
+			response_data, total_records  = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40), [], include_list)
 			response_data = check_for_shortlisted_property(response_data, request_data.get("user_id"))
 			
 			# response data & pagination logic
@@ -596,13 +601,15 @@ def get_similar_properties(request_data):
 		search_dict = {"property_id":get_search_query_of_property_id ,"request_id":get_search_query_of_request_id}
 		if request_data.get("request_type") not in ["property_id", "request_id"]:
 			raise InvalidDataError("Request type contains Invalid Data")
-		search_query = search_dict.get(request_data.get("request_type"))(request_data)
+		search_query, uom = search_dict.get(request_data.get("request_type"))(request_data)
 		try:
 			
 			sp_include_fields = ["property_photo", "property_id", "location", "address",
 			                      "city", "carpet_area", "price" ]
 			es = ElasticSearchController()
 			response_data, total_records = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",4), [], sp_include_fields)
+			uom = "Sq.Ft" if uom not in ["Sq.Ft", "Acres", "Hectares"] else uom
+			putil.convert_area_according_to_uom(response_data, uom)
 			response_msg = "Similar Property Found" if response_data else "Similar property not found"
 			return {
 						"operation":"Search", 
@@ -622,7 +629,7 @@ def get_search_query_of_property_id(request_data):
 		es = ElasticSearchController()
 		response = es.search_document_for_given_id("property",request_data.get("id"))		
 		search_query = putil.generate_search_query_from_property_data(response)
-		return search_query
+		return search_query, "Sq.Ft"
 	except elasticsearch.TransportError:
 		raise DoesNotExistError("Property Id does not exists")
 	except elasticsearch.ElasticsearchException,e:
@@ -632,9 +639,9 @@ def get_search_query_of_property_id(request_data):
 def get_search_query_of_request_id(request_data):
 	try:
 		es = ElasticSearchController()
-		response = es.search_document_for_given_id("request",request_data.get("id"),[],["search_query"])
+		response = es.search_document_for_given_id("request",request_data.get("id"),[],["search_query", "unit_of_area"])
 		search_query = ast.literal_eval(response.get("search_query").encode("utf8"))
-		return search_query
+		return search_query, response.get("unit_of_area")
 	except elasticsearch.TransportError:
 		raise DoesNotExistError("Request Id does not exists")
 	except elasticsearch.ElasticsearchException,e:
@@ -659,16 +666,17 @@ def get_alerts(request_data):
 		alert = frappe.db.sql("select * from `tabAlerts` where user_id='{0}' order by creation desc limit 1".format(request_data.get("user_id")),as_dict=1)
 		try:
 			if alert:
-				property_search_query = get_alerts_based_on_alert_doctype(alert)
+				property_search_query, uom = get_alerts_based_on_alert_doctype(alert)
 			else:
-				property_search_query = get_alerts_based_on_last_request(request_data, email)
+				property_search_query, uom = get_alerts_based_on_last_request(request_data, email)
 			
 			# fields to be included in response and resultset generation
 
-			include_fields_list = ["property_id", "property_title", "price", "property_photo", "location", "city"]		
+			include_fields_list = ["property_id", "property_title", "price", "property_photo", "location", "city", "carpet_area", "unit_of_area"]		
 			es = ElasticSearchController()
 			response_data, total_records = es.search_document(["property"], property_search_query, request_data.get("page_number",1), request_data.get("records_per_page",40), [], include_fields_list)
-			
+			putil.convert_area_according_to_uom(response_data, uom)
+
 			#  response generation and pagination logic 
 
 			from_record =  ((request_data.get("page_number",1) - 1) * cint(request_data.get("records_per_page",40)) + 1 )
@@ -702,6 +710,9 @@ def get_alerts_based_on_alert_doctype(alert):
 		check for properties which are posted after creation date of alert only.  
 	"""
 
+	uom = alert[0].get("unit_of_area")
+	alert[0]["unit_of_area"] = "Sq.Ft" if uom not in ["Sq.Ft", "Acres", "Hectares"] else uom
+	putil.convert_area_to_sqft_for_search(alert[0])
 	property_search_query = putil.generate_search_query(alert[0])
 	new_query = property_search_query.get("query").get("bool").get("must")
 	new_query.append({
@@ -712,7 +723,7 @@ def get_alerts_based_on_alert_doctype(alert):
 					    }
 					})
 	property_search_query["query"]["bool"]["must"] = new_query
-	return property_search_query
+	return property_search_query, alert[0].get("unit_of_area")
 
 
 
@@ -744,7 +755,9 @@ def get_alerts_based_on_last_request(request_data, email):
 								    }
 								})
 			property_search_query["query"]["bool"]["must"] = new_query
-			return property_search_query
+			uom = response_data[0].get("unit_of_area")
+			uom = "Sq.Ft" if uom not in ["Sq.Ft", "Acres", "Hectares"] else uom
+			return property_search_query,  uom
 		else:
 			raise OperationFailed("No Alerts and Request Id found against User {0}".format(email))
 	except elasticsearch.ElasticsearchException,e:
@@ -761,7 +774,80 @@ def reindex_data(data):
 		helpers.reindex(client=es, source_index=request_data.get("source"), target_index=request_data.get("target"))
 		return {"data":"sucess"}
 	except elasticsearch.ElasticsearchException,e:
-		return {"new":dir(e),"mes":e.message, "error":e.errors}									
+		return {"new":dir(e),"mes":e.message, "error":e.errors}
+
+
+
+def get_all_property_data(data):
+	es = ElasticSearchController()
+	response_data, total_records = es.search_document(["property"], "", 1, 1000)
+	return {"total_records":total_records, "data":response_data}
+
+
+
+def update_tags_of_property(data):
+	request_data = json.loads(data)
+	user_email = putil.validate_for_user_id_exists(request_data.get("user_id"))
+	user_data = frappe.db.get_value("User",{"name":user_email}, "user_type", as_dict=True)
+	if user_data.get("user_type") == "System User":
+		try:
+			es = ElasticSearchController()
+			response = es.search_document_for_given_id("property",request_data.get("property_id"), [], [])
+			get_tag_and_calculate_discounted_price(response, request_data)
+			get_modified_datetime(response, user_email)	
+			search_query = search_query = {"doc": response }
+			es = ElasticSearchController()
+			update_response = es.update_docuemnt("property", request_data.get("property_id"), search_query)
+			return {	
+						"operation":"update", 
+						"user_id":request_data.get("user_id"), 
+						"message":"Property Tags Updated Successfully"
+					}
+		except elasticsearch.TransportError:
+			raise DoesNotExistError("Property Id does not exists")
+		except elasticsearch.ElasticsearchException,e:
+			raise ElasticSearchException(e.error)					
+	else:
+		raise MandatoryError("User {0} not allowed to update property tags.".format(user_email))
+
+
+
+
+def get_tag_and_calculate_discounted_price(response, request_data):
+	property_tags = set(response.get("tag", []))
+	new_tags = set(request_data.get("tags", []))
+	new_tags = property_tags | new_tags
+	response["tag"] = list(new_tags)
+	if request_data.get("discount_percentage",0.0):
+		discount_price = response.get("price",0.0) - (  response.get("price",0.0) * request_data.get("discount_percentage",0.0) / 100 )
+		response["discounted_price"] = discount_price
+
+
+
+def get_modified_datetime(response, user_email):
+	response["modified_datetime"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+	response["modified_date"] = datetime.datetime.now().strftime("%d-%m-%Y")
+	response["modified_by"]	= user_email
+
+
+
+
+def get_property_details(data):
+	request_data = json.loads(data)
+	user_email = putil.validate_for_user_id_exists(request_data.get("user_id"))
+	include_list = request_data.get("fields",[])
+	try:
+		es = ElasticSearchController()
+		response = es.search_document_for_given_id("property",request_data.get("property_id"), [], include_list)
+		return {"opeartion":"Search", "message":"Property details Found", "data":response}
+	except elasticsearch.TransportError:
+		raise DoesNotExistError("Property Id does not exists")
+	except elasticsearch.ElasticsearchException,e:
+		raise ElasticSearchException(e.error)	
+
+
+
+
 
 
 

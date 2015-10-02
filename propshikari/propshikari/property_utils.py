@@ -4,7 +4,7 @@ import os
 import time
 import json
 from api_handler.api_handler.exceptions import *
-from frappe.utils import cstr, cint, date_diff
+from frappe.utils import cstr, cint, date_diff, flt
 from dateutil import relativedelta
 from datetime import datetime
 
@@ -46,6 +46,7 @@ def generate_search_query(property_data):
 		range_list = [ {"range": {range_key:range_value} } for range_key,range_value in range_dict.items() ]
 		must_clause_list.extend(range_list)
 	search_query = { "query":{ "bool":{ "must":must_clause_list } }, "sort": [{ "posted_datetime": { "order": "desc" }}] }
+	# print search_query
 	return search_query	
 
 def get_range_query(key,value,request_data):
@@ -250,6 +251,46 @@ def prepare_nested_query(range_list):
 					} 
 				} 
 			}
+
+
+
+def convert_area_to_sqft_for_posting(request_data):
+	uom_mapper = {"Acres" :43560, "Hectares":107639}
+	uom = request_data.get("unit_of_area")
+	validate_for_valid_uom(uom) if uom else ""
+	if uom and uom != "Sq.Ft":
+		request_data["carpet_area"] = uom_mapper.get(uom) * request_data.get("carpet_area",0)
+
+
+def convert_area_to_sqft_for_search(request_data):
+	uom_mapper = {"Acres" :43560, "Hectares":107639}
+	uom = request_data.get("unit_of_area")
+	validate_for_valid_uom(uom) if uom else ""
+	if uom and uom != "Sq.Ft":
+		for area in ["min_area", "max_area"]:
+			if request_data.get(area,False):
+				request_data[area] = uom_mapper.get(uom) * flt(request_data.get(area,0))
+
+
+def convert_area_according_to_uom(response_data, uom):
+	for response in response_data:
+		response["carpet_area"] = get_carpet_area(response.get("carpet_area"),uom) if uom != "Sq.Ft" else response.get("carpet_area")
+		response["unit_of_area"] = uom
+
+
+def get_carpet_area(carpet_area, uom):
+	uom_mapper = {"Acres" :43560, "Hectares":107639}
+	return  round( carpet_area / flt(uom_mapper.get(uom)),2)
+
+
+def validate_for_valid_uom(uom):
+	if uom not in ["Sq.Ft", "Acres", "Hectares"]:
+		raise InvalidDataError("Unit of area must be from Sq.Ft, Acres, Hectares")
+
+
+
+
+
 
 
 
