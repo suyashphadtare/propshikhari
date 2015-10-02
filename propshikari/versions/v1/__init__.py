@@ -206,6 +206,12 @@ def get_property_details(data):
 	return api.get_property_details(data)
 
 
+@frappe.whitelist(allow_guest=True)
+def post_project(data):
+	return projt.post_project(data)
+
+
+
 
 
 		

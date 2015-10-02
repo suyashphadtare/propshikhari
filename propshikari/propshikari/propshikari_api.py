@@ -48,6 +48,7 @@ def post_property(data):
 			data["amenities"] = putil.prepare_amenities_data(data.get("amenities",""), data.get("property_type"))
 			data["flat_facilities"] = putil.prepare_flat_facilities_data(data.get("flat_facilities",""), data.get("property_type"))
 			data["possession_status"] = "Immediate" if data.get("possession") else data.get("possession_date")
+			data["discounted_price"] = putil.get_discounted_price() if data.get("discount_percentage") else 0.0
 			data.pop("possession_date", None)
 			es = ElasticSearchController()
 			response_data = es.index_document("property",data, custom_id)

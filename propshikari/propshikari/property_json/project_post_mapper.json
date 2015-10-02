@@ -1,0 +1,170 @@
+{
+  "project_name": {
+    "is_mandatory": true,
+    "field_type": "string"
+  },
+  "project_type": {
+    "is_mandatory": true,
+    "field_type": "string"
+  },
+  "project_subtype": {
+    "is_mandatory": true,
+    "field_type": "string"
+  },
+  "project_by": {
+    "is_mandatory": true,
+    "field_type": "string"
+  },
+  "project_for": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "email_id": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "website": {
+    "is_mandatory": true,
+    "field_type": "string"
+  },
+  "location": {
+    "is_mandatory": true,
+    "field_type": "string"
+  },
+  "address": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "amenities": {
+    "is_mandatory": false,
+    "field_type": "list"
+  },
+  "overview": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "price_per_sq_ft": {
+    "is_mandatory": false,
+    "field_type": "number"
+  },
+  "tag": {
+    "is_mandatory": false,
+    "field_type": "list"
+  },
+  "no_of_floors": {
+    "is_mandatory": false,
+    "field_type": "integer"
+  },
+  "posting_date": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "property_age": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "furnishing_type": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "possession": {
+    "is_mandatory": false,
+    "field_type": "integer"
+  },
+  "state": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "city": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "pincode": {
+    "is_mandatory": false,
+    "field_type": "number"
+  },
+  "contact_no": {
+    "is_mandatory": false,
+    "field_type": "number"
+  },
+  "contact_person": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "geo_location_lat": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "geo_location_lon":{
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "percent_completion": {
+    "is_mandatory": false,
+    "field_type": "number"
+  },
+  "status": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "distance_from_imp_locations": {
+    "is_mandatory": false,
+    "field_type": "object"
+  },
+  "posted_by": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "modified_by": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "modified_date": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "modified_datetime": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "posted_datetime": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "possession_date": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "possession_status":{
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "project_tieup_by":{
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "property_details":{
+    "is_mandatory":true,
+    "field_type":"nested"
+  },
+  "transaction_type":{
+    "is_mandatory":false,
+    "field_type":"string"
+  },
+  "full_size_images":{
+    "is_mandatory":false,
+    "field_type":"list"
+  },
+  "thumbnails":{
+    "is_mandatory":false,
+    "field_type":"list"
+  },
+  "project_photo":{
+    "is_mandatory":false,
+    "field_type":"string"
+  },
+  "fees_in_percent":{
+    "is_mandatory":false,
+    "field_type":"number"
+  }
+}

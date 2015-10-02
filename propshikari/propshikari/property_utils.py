@@ -288,6 +288,11 @@ def validate_for_valid_uom(uom):
 		raise InvalidDataError("Unit of area must be from Sq.Ft, Acres, Hectares")
 
 
+def get_discounted_price(request_data):
+	discount_price = request_data.get("price",0.0) - (  request_data.get("price",0.0) * request_data.get("discount_percentage",0.0) / 100 )
+	return discount_price
+
+
 
 
 
