@@ -1,0 +1,46 @@
+{
+  "operation": {
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "property_type": {
+    "is_mandatory": true,
+    "field_type": "string"
+  },
+  "property_subtype": {
+    "is_mandatory": true,
+    "field_type": "string"
+  },
+  "min_area":{
+    "is_mandatory": false,
+    "field_type": "number"
+  },
+  "max_area":{
+    "is_mandatory": true,
+    "field_type": "number"
+  },
+  "min_price":{
+    "is_mandatory": false,
+    "field_type": "number"
+  },
+  "max_price":{
+    "is_mandatory": true,
+    "field_type": "number"
+  },
+  "unit_of_area":{
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "property_subtype_option":{
+    "is_mandatory": true,
+    "field_type": "string"
+  },
+  "count":{
+    "is_mandatory": false,
+    "field_type": "number"
+  },
+  "no_of_bathroom":{
+    "is_mandatory": false,
+    "field_type": "string"
+  }
+ } 

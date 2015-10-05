@@ -305,6 +305,30 @@ def get_discounted_price(request_data):
 	return discount_price
 
 
+def validate_project_posting_data(property_data,file_name):
+
+	" Validate project posting data for valid datatype, fields and for mandatory fields "
+
+
+	property_mapper = {}
+	property_details_list = []
+	with open(os.path.join(os.path.dirname(__file__),file_name),"r") as pi:
+		property_mapper = json.loads(pi.read())
+
+	property_mapper_keys = property_mapper.keys()
+		
+	for prop in property_data:
+		for field_name,schema in property_mapper.items():
+			if schema.get("is_mandatory") and not prop.get(field_name,False):
+				raise MandatoryError("Mandatory field {0} missing".format(field_name))
+			elif prop.has_key(field_name):
+				validate_for_field_type(schema, prop.get(field_name), field_name)
+	
+		property_details_list.append({key:prop.get(key) for key in prop if key in property_mapper_keys})
+
+	return property_details_list	
+
+
 
 
 
