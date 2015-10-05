@@ -216,6 +216,11 @@ def get_all_property_data(data):
 	return api.get_all_property_data(data)
 
 
+@frappe.whitelist(allow_guest=True)
+def update_property_fields(data):
+	return api.update_property_fields(data)
+
+
 
 
 
