@@ -112,7 +112,7 @@ def post_project(data):
 	try:
 		request_data = json.loads(data)
 		user_email = putil.validate_for_user_id_exists(request_data.get("user_id"))
-		user_data = frappe.db.get_value("User",{"name":user_email}, "user_type", as_dict=True)
+		user_data = frappe.db.get_value("User",{"email":user_email}, "user_type", as_dict=True)
 		if user_data.get("user_type") == "System User":
 			project_data = putil.validate_property_posting_data(request_data,"property_json/project_post_mapper.json")
 			property_details = putil.validate_project_posting_data(project_data.get("property_details"),"property_json/project_child_table.json")
