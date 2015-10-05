@@ -110,9 +110,10 @@ def search_project(request_data):
 
 def post_project(data):
 	try:
-		request_data = json.loads(data)
+		request_data = json.loads(data) if isinstance(data,unicode) else data
 		user_email = putil.validate_for_user_id_exists(request_data.get("user_id"))
-		user_data = frappe.db.get_value("User",{"name":user_email}, "user_type", as_dict=True)
+		user_data = frappe.db.get_value("User",{"email":user_email}, "user_type", as_dict=True)
+		print user_data
 		if user_data.get("user_type") == "System User":
 			project_data = putil.validate_property_posting_data(request_data,"property_json/project_post_mapper.json")
 			project_id= init_for_project_posting(project_data, user_email, request_data.get("user_id"))
@@ -125,6 +126,7 @@ def post_project(data):
 				init_for_property_posting(project_data)
 				response_dict["message"] = "Project Posted Successfully"
 			except Exception,e:
+				raise e
 				response_dict["message"] ="Project Posted Successfully but Property Posting Failed"
 			response_dict["project_id"] = project_id
 			return response_dict				
@@ -188,7 +190,7 @@ def prepare_property_posting_data(project_data):
 		prop_dict["unit_of_area"] = prop.get("unit_of_area")
 		prop_dict["property_photo"] = project_data.get("project_photo","")
 		prop_dict.update(new_project_data)
-		prop_list = [prop_dict] * prop.get("count")
+		prop_list = [prop_dict] * cint(prop.get("count"))
 		property_data.extend(prop_list)
 	return property_data	
 
