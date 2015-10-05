@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 import frappe
 from frappe.utils import cstr, cint
-from frappe.utils import add_days, getdate, now, nowdate ,random_string ,add_months, getdate
+from frappe.utils import add_days, getdate, now, nowdate ,random_string ,add_months, getdate, formatdate
 from frappe.auth import _update_password
 import property_utils as putil
 import json ,ast
@@ -149,9 +149,12 @@ def get_user_profile(data):
 			user_data["profile_photo"] = frappe.request.host_url + user_data.get("profile_photo")
 		user_data["city"] = frappe.db.get_value("City",user_data["city"],"city_name") or ""
 		user_data["location"] = frappe.db.get_value("Area",user_data["area"],"area") or ""
+		user_data["dob"] = datetime.datetime.strftime(getdate(user_data["dob"]), "%d-%m-%Y") if user_data["dob"] else ""
 		user_data.pop("area",None)
 		return {"operation":"Search", "message":"Profile Found", "data":user_data, "user_id":request_data.get("user_id")}	
 	except Exception,e:
+		print frappe.get_traceback()
+		raise e
 		raise GetUserProfileOperationFailed("User Profile Operation failed")	
 
 
@@ -161,7 +164,7 @@ def update_user_profile(data):
 	user_email = putil.validate_for_user_id_exists(request_data.get("user_id"))
 	city = frappe.db.get_value("City",{ "city_name":request_data.get("city") ,"state_name":request_data.get("state")}, "name")	
 	area = frappe.db.get_value("Area",{ "city_name":city ,"state_name":request_data.get("state"), "area":request_data.get("location")}, "name")
-	dob = getdate(request_data.get("dob")) if request_data.get("dob","") else ""  
+	dob = getdate(getdate(request_data.get("dob")).strftime("%d-%m-%y")) if request_data.get("dob","") else ""  
 	user_dict = {"first_name":request_data.get("first_name",""), "last_name":request_data.get("last_name",""), "mobile_no": request_data.get("mobile_number",""), "state": request_data.get("state",""), "city":city, "area":area, "address":request_data.get("address",""), "pincode":request_data.get("pin_code",""), "birth_date":dob,"lattitude":request_data.get("geo_location_lat"),"longitude":request_data.get("geo_location_lon")}
 	try:
 		# user_dict["user_image"] = store_image_to_propshikari(request_data)
