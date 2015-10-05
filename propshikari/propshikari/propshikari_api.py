@@ -847,12 +847,13 @@ def get_property_details(data):
 		raise ElasticSearchException(e.error)
 
 
+
 def update_property_fields(data):
 	request_data = json.loads(data)
 	user_email = putil.validate_for_user_id_exists(request_data.get("user_id"))
 	try:
-		field_dict = get_updated_fields_dict(request_data)
-		search_query = search_query = {"doc": response }
+		field_dict = get_updated_fields_dict(request_data, user_email)
+		search_query = search_query = {"doc": field_dict }
 		es = ElasticSearchController()
 		update_response = es.update_docuemnt("property", request_data.get("property_id"), search_query)
 		return {"opeartion":"Update", "message":"Property details Updated", "data":response}
@@ -860,6 +861,14 @@ def update_property_fields(data):
 		raise DoesNotExistError("Property Id does not exists")
 	except elasticsearch.ElasticsearchException,e:
 		raise ElasticSearchException(e.error)
+
+
+def get_updated_fields_dict(request_data, user_email):
+	update_dict = {}
+	update_dict.update(request_data.get("fields"))
+	get_modified_datetime(update_dict, user_email)
+	return update_dict
+
 
 
 

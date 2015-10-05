@@ -113,9 +113,10 @@ def post_project(data):
 		request_data = json.loads(data) if isinstance(data,unicode) else data
 		user_email = putil.validate_for_user_id_exists(request_data.get("user_id"))
 		user_data = frappe.db.get_value("User",{"email":user_email}, "user_type", as_dict=True)
-		print user_data
 		if user_data.get("user_type") == "System User":
 			project_data = putil.validate_property_posting_data(request_data,"property_json/project_post_mapper.json")
+			property_details = putil.validate_project_posting_data(project_data.get("property_details"),"property_json/project_child_table.json")
+			project_data["property_details"] = property_details
 			project_id= init_for_project_posting(project_data, user_email, request_data.get("user_id"))
 			init_for_project_photo_upload(request_data, project_data)
 			response_dict= {"operation":"Create", "user_id":request_data.get("user_id")}
