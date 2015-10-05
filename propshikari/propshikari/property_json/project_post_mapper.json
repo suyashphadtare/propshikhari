@@ -166,5 +166,9 @@
   "fees_in_percent":{
     "is_mandatory":false,
     "field_type":"number"
+  },
+  "operation":{
+    "is_mandatory":false,
+    "field_type":"string"
   }
 }

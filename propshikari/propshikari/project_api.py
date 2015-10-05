@@ -4,7 +4,7 @@ from frappe.utils import cstr, cint, flt
 from elastic_controller import ElasticSearchController
 from frappe.utils import add_days, getdate, now, nowdate ,random_string ,add_months
 import property_utils as putil
-from propshikari_api import store_request_in_elastic_search, add_meta_fields_before_posting
+from propshikari_api import store_request_in_elastic_search, add_meta_fields_before_posting, store_property_photos_in_propshikari
 import json ,ast
 import time
 import random
@@ -72,6 +72,10 @@ def search_project(request_data):
 			if not project_data.get("request_id"):	
 				request_id = store_request_in_elastic_search(project_data, search_query, "Project Search")
 			response_data = putil.get_date_diff_from_posting(response_data)
+			property_subtype_option = project_data.get("property_subtype_option","") 
+			get_valid_property_subtype_option(response_data, property_subtype_option) if property_subtype_option else ""
+
+
 			response_msg = "Project found for specfied criteria" if len(response_data) else "Project not found"
 			from_record = (project_data.get("page_number",1) - 1) * cint(project_data.get("records_per_page",40)) + 1
 			no_of_pages = math.ceil(flt(total_records)/project_data.get("records_per_page",40))
@@ -109,12 +113,14 @@ def post_project(data):
 		request_data = json.loads(data)
 		user_email = putil.validate_for_user_id_exists(request_data.get("user_id"))
 		user_data = frappe.db.get_value("User",{"name":user_email}, "user_type", as_dict=True)
-		if True:
+		if user_data.get("user_type") == "System User":
 			project_data = putil.validate_property_posting_data(request_data,"property_json/project_post_mapper.json")
 			project_id= init_for_project_posting(project_data, user_email, request_data.get("user_id"))
-			response_dict= {"operation":"Create", 	"user_id":request_data.get("user_id")}
-			# es = ElasticSearchController()
-			# response_data = es.index_document("project", project_data, project_data["project_id"])
+			init_for_project_photo_upload(request_data, project_data)
+			response_dict= {"operation":"Create", "user_id":request_data.get("user_id")}
+			
+			es = ElasticSearchController()
+			response_data = es.index_document("project", project_data, project_data["project_id"])
 			try:
 				init_for_property_posting(project_data)
 				response_dict["message"] = "Project Posted Successfully"
@@ -124,8 +130,12 @@ def post_project(data):
 			return response_dict				
 		else:
 			raise MandatoryError("User {0} not allowed to post project".format(user_email))
+	except elasticsearch.ElasticsearchException,e:
+		raise ElasticSearchException(e.error)
+	except ImageUploadError,e:
+		raise ImageUploadError("Project posting failed due to image upload error")
 	except Exception,e:
-		print frappe.get_traceback()
+		# print frappe.get_traceback()
 		raise e
 
 
@@ -145,26 +155,30 @@ def init_for_project_posting(project_data, user_email, user_id):
 	return custom_id
 
 
+def init_for_project_photo_upload(request_data, project_data):
+	property_photo_url_dict = store_property_photos_in_propshikari(request_data.get("project_photos"), project_data.get("project_id"))
+	project_data["full_size_images"] = property_photo_url_dict.get("full_size",[])
+	project_data["thumbnails"] = property_photo_url_dict.get("thumbnails",[])
+	project_data["project_photo"] = property_photo_url_dict.get("thumbnails")[0] if len(property_photo_url_dict.get("thumbnails")) else ""
+
+
 def init_for_property_posting(project_data):
 	property_data = prepare_property_posting_data(project_data)
 	for prop in property_data:
 		custom_id = "PROP-"  + cstr(int(time.time())) + '-' +  cstr(random.randint(10000,99999))
 		prop["property_id"] = custom_id
-		# es = ElasticSearchController()
-		# response_data = es.index_document("property", prop, custom_id)
-	return property_data	
+		es = ElasticSearchController()
+		response_data = es.index_document("property", prop, custom_id)	
 
 
 def prepare_property_posting_data(project_data):
 	property_data = []
-	property_details = project_data.get("property_details")
-	project_name = project_data.get("project_name") 
 	new_project_data = get_property_specific_keys(project_data)
 
-	for prop in property_details:
+	for prop in project_data.get("property_details"):
 		prop_dict = {}
 		prop_list = []
-		prop_dict["property_title"] = project_name
+		prop_dict["property_title"] =  project_data.get("project_name")
 		prop_dict["property_type"] = prop.get("property_type")
 		prop_dict["property_subtype"] = prop.get("property_subtype")
 		prop_dict["property_subtype_option"] = prop.get("property_subtype_option")
@@ -172,6 +186,7 @@ def prepare_property_posting_data(project_data):
 		prop_dict["carpet_area"] = prop.get("max_area")
 		prop_dict["price"] = prop.get("max_price")
 		prop_dict["unit_of_area"] = prop.get("unit_of_area")
+		prop_dict["property_photo"] = project_data.get("project_photo","")
 		prop_dict.update(new_project_data)
 		prop_list = [prop_dict] * prop.get("count")
 		property_data.extend(prop_list)
@@ -179,11 +194,20 @@ def prepare_property_posting_data(project_data):
 
 
 def get_property_specific_keys(project_data):
-	
-	key_list = ["project_name","project_by", "project_for", "email_id", "website", "property_details", "fees_in_percent","project_tieup_by"]
+	new_project_data = {}
+	new_project_data.update(project_data)
+	key_list = ["project_name","project_by", "project_for", "email_id", "website", "property_details", "fees_in_percent","project_tieup_by", "project_photo"]
 	for key in key_list:
-		project_data.pop(key,None)
-	return project_data	
+		new_project_data.pop(key,None)
+	return new_project_data	
+
+
+
+def get_valid_property_subtype_option(response_data, property_subtype_option):
+	for response in response_data:
+		if response.get("property_details"):
+			response["property_details"] = [ prop for prop in response.get("property_details") if prop.get("property_subtype_option").lower() == property_subtype_option.lower() ]
+
 
 
 
