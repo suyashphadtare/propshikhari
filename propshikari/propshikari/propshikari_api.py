@@ -27,7 +27,7 @@ from api_handler.api_handler.exceptions import *
 def post_property(data):
 	if data:
 		try:
-			old_data = json.loads(data)
+			old_data = json.loads(data) if isinstance(data,unicode) else old_data = data
 			email = putil.validate_for_user_id_exists(old_data.get("user_id"))
 			subs_doc = putil.validate_for_postings_available(email)
 			putil.convert_area_to_sqft_for_posting(old_data)
