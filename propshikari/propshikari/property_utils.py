@@ -236,21 +236,33 @@ def generate_project_search_query(project_data):
 					"property_details.min_price":["min_budget","gte"], 
 					"property_details.max_price":["max_budget","lte"]
 				}	
+	
 	range_list = [ {"range": {range_key: {range_value[1]:project_data.get(range_value[0])  } } } for range_key,range_value in range_dict.items() if project_data.get(range_value[0])]
-	filter_query = prepare_nested_query(range_list) if range_list else {}
+	filter_query = prepare_nested_query(range_list, project_data)
 	search_query = { "query": { "filtered":{ "query":{ "bool":{ "must":must_clause_list } }, "filter":filter_query}   }, "sort": [{ "posted_datetime": { "order": "desc" }}] }
 	return search_query
 
 
-def prepare_nested_query(range_list):
-	return { "nested":
-				{ 
-					"path":"property_details",
-					"query":{ 
-						"bool":{ "must":range_list }  
+def prepare_nested_query(range_list, project_data):
+	if project_data.get("property_subtype_option"):
+		property_subtype_option_query = { 
+											"match":  
+												{
+                                               		"property_subtype_option": project_data.get("property_subtype_option")
+												}											
+	                                    }
+		range_list.append(property_subtype_option_query)
+	if range_list:	                         		      
+		return { "nested":
+					{ 
+						"path":"property_details",
+						"query":{ 
+							"bool":{ "must":range_list }  
+						} 
 					} 
-				} 
-			}
+				}
+	else:
+		return {}			
 
 
 
@@ -286,6 +298,11 @@ def get_carpet_area(carpet_area, uom):
 def validate_for_valid_uom(uom):
 	if uom not in ["Sq.Ft", "Acres", "Hectares"]:
 		raise InvalidDataError("Unit of area must be from Sq.Ft, Acres, Hectares")
+
+
+def get_discounted_price(request_data):
+	discount_price = request_data.get("price",0.0) - (  request_data.get("price",0.0) * request_data.get("discount_percentage",0.0) / 100 )
+	return discount_price
 
 
 

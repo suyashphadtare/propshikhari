@@ -48,6 +48,7 @@ def post_property(data):
 			data["amenities"] = putil.prepare_amenities_data(data.get("amenities",""), data.get("property_type"))
 			data["flat_facilities"] = putil.prepare_flat_facilities_data(data.get("flat_facilities",""), data.get("property_type"))
 			data["possession_status"] = "Immediate" if data.get("possession") else data.get("possession_date")
+			data["discounted_price"] = putil.get_discounted_price() if data.get("discount_percentage") else 0.0
 			data.pop("possession_date", None)
 			es = ElasticSearchController()
 			response_data = es.index_document("property",data, custom_id)
@@ -843,7 +844,24 @@ def get_property_details(data):
 	except elasticsearch.TransportError:
 		raise DoesNotExistError("Property Id does not exists")
 	except elasticsearch.ElasticsearchException,e:
-		raise ElasticSearchException(e.error)	
+		raise ElasticSearchException(e.error)
+
+
+def update_property_fields(data):
+	request_data = json.loads(data)
+	user_email = putil.validate_for_user_id_exists(request_data.get("user_id"))
+	try:
+		field_dict = get_updated_fields_dict(request_data)
+		search_query = search_query = {"doc": response }
+		es = ElasticSearchController()
+		update_response = es.update_docuemnt("property", request_data.get("property_id"), search_query)
+		return {"opeartion":"Update", "message":"Property details Updated", "data":response}
+	except elasticsearch.TransportError:
+		raise DoesNotExistError("Property Id does not exists")
+	except elasticsearch.ElasticsearchException,e:
+		raise ElasticSearchException(e.error)
+
+
 
 
 

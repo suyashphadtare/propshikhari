@@ -35,6 +35,10 @@
     "is_mandatory": false,
     "field_type": "string"
   },
+  "property_subtype_option":{
+    "is_mandatory": false,
+    "field_type": "string"
+  },
   "request_id":{
     "is_mandatory": false,
     "field_type": "string"
