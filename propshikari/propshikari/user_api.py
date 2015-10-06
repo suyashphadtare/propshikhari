@@ -222,3 +222,6 @@ def validate_for_session_exists(request_data):
 
 
 			
+
+def set_user_id(doc,method):
+	pass
