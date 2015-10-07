@@ -27,7 +27,7 @@ from api_handler.api_handler.exceptions import *
 def post_property(data):
 	if data:
 		try:
-			old_data = json.loads(data)
+			old_data = json.loads(data) if isinstance(data,unicode) else data
 			email = putil.validate_for_user_id_exists(old_data.get("user_id"))
 			subs_doc = putil.validate_for_postings_available(email)
 			putil.convert_area_to_sqft_for_posting(old_data)
@@ -789,7 +789,7 @@ def get_all_property_data(data):
 def update_tags_of_property(data):
 	request_data = json.loads(data)
 	user_email = putil.validate_for_user_id_exists(request_data.get("user_id"))
-	user_data = frappe.db.get_value("User",{"name":user_email}, "user_type", as_dict=True)
+	user_data = frappe.db.get_value("User",{"email":user_email}, "user_type", as_dict=True)
 	if user_data.get("user_type") == "System User":
 		try:
 			es = ElasticSearchController()
