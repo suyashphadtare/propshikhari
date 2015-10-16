@@ -41,6 +41,6 @@
   },
   "no_of_bathroom":{
     "is_mandatory": false,
-    "field_type": "string"
+    "field_type": "number"
   }
  } 

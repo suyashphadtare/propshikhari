@@ -112,7 +112,7 @@ def search_project(request_data):
 
 def post_project(data):
 	try:
-		request_data = json.loads(data)
+		request_data = json.loads(data) if isinstance(data,unicode) else data
 		user_email = putil.validate_for_user_id_exists(request_data.get("user_id"))
 		user_data = frappe.db.get_value("User",{"email":user_email}, "user_type", as_dict=True)
 		if user_data.get("user_type") == "System User":
@@ -129,6 +129,7 @@ def post_project(data):
 				init_for_property_posting(project_data)
 				response_dict["message"] = "Project Posted Successfully"
 			except Exception,e:
+				raise e
 				response_dict["message"] ="Project Posted Successfully but Property Posting Failed"
 			response_dict["project_id"] = project_id
 			return response_dict				

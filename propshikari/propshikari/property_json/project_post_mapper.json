@@ -24,7 +24,7 @@
     "field_type": "string"
   },
   "website": {
-    "is_mandatory": true,
+    "is_mandatory": false,
     "field_type": "string"
   },
   "location": {

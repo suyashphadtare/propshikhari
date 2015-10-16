@@ -305,3 +305,6 @@ def validate_mascot_data(mascot_list):
 			mascot_dict[mascot] = 1
 		return mascot_dict	 
 
+
+def set_user_id(doc,method):
+	pass

@@ -26,13 +26,6 @@ search_query = {}
 
 
 def post_property(data):
-	
-	"""
-		Post property with various property related
-		details such as property_type, subtype, operation, price, location etc.
-
-	"""
-
 	try:
 		request_data = json.loads(data)
 		property_data, email, subs_doc = validate_data_before_property_posting(request_data)
@@ -789,6 +782,7 @@ def get_alerts_based_on_last_request(request_data, email):
 			raise OperationFailed("No Alerts and Request Id found against User {0}".format(email))
 	except elasticsearch.ElasticsearchException,e:
 		raise ElasticSearchException(e.error)
+
 
 
 
