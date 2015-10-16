@@ -22,7 +22,6 @@ import math
 from api_handler.api_handler.exceptions import *
 
 
-search_query = {}
 
 
 def post_property(data):
