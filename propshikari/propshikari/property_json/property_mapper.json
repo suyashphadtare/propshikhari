@@ -214,5 +214,9 @@
   "possession_status":{
     "is_mandatory": false,
     "field_type": "string"
+  },
+   "discount_percentage":{
+    "is_mandatory": false,
+    "field_type": "number"
   }
 }

@@ -3,6 +3,7 @@ import frappe
 import os
 import time
 import json
+import math
 from api_handler.api_handler.exceptions import *
 from frappe.utils import cstr, cint, date_diff, flt
 from dateutil import relativedelta
@@ -138,16 +139,15 @@ def generate_search_query_from_property_data(property_data):
 	property_field_dict = {"operation":"operation", "property_type":"property_type", "property_subtype":"property_subtype", "location":"location", "property_subtype_option":"property_subtype_option", "city":"city"}
 	must_clause_list = [ {"match":{ property_field : property_data.get(request_field) } } for request_field,property_field in property_field_dict.items() if property_data.get(request_field,False)]
 	must_clause_list.append({"match":{ "status": "Active" } })
-	range_list = range_list = [ {"range": {range_key:{"lte":property_data.get(range_key)}} } for range_key in ["carpet_area","price"] if property_data.get(range_key,False)]
+	range_list = [ {"range": {range_key:{"lte":property_data.get(range_key)}} } for range_key in ["carpet_area","price"] if property_data.get(range_key,False)]
 	must_clause_list.extend(range_list)
 	search_query = { "query":{ "bool":{ "must":must_clause_list } }, "sort": [{ "posted_datetime": { "order": "desc" }}] }
 	return search_query				
 
 
 def validate_for_postings_available(email):
-	role_list = frappe.db.get_values("UserRole",{"parent":email}, "role",as_dict=True)
-	role_list = [role.get("role") for role in role_list if role.get("role")]
-	if "System Manager" not in role_list:
+	user_data = frappe.db.get_value("User",{"email":email}, "user_type", as_dict=True)
+	if user_data.get("user_type") == "System User":
 		subs_name = frappe.db.get_value("User Subscription",{"user":email},"name")
 		if subs_name:
 			subs_doc = frappe.get_doc("User Subscription",subs_name)
@@ -218,6 +218,58 @@ def isolate_city_from_location(property_data):
 			raise InvalidDataError("Invalid Input of Location Field")
 
 
+def init_for_location_or_city_creation(property_data):
+	if property_data.get("location"):
+		location_city_list = property_data.get("location").split(',')
+		condition = ",".join('"{0}"'.format(loc) for loc in location_city_list)
+		area_list = frappe.db.sql(""" select * from `tabArea` where name in ({0}) """.format(condition), as_dict=True)
+		if area_list: 
+			property_data["location"] = ",".join([ area.get("area") for area in area_list ])
+			city_ids = [area.get("city_name") for area in area_list if area.get("city_name")]
+			city_name = frappe.db.get_value("City", {"name":city_ids[0]}, "city_name")
+			property_data["city"] = city_name if city_name else ""
+		else:
+			city_name = frappe.db.get_value("City", {"name":property_data.get("location")}, "city_name")
+			property_data["city"] = city_name if city_name else ""
+			property_data.pop("location")
+
+
+def generate_advance_search_query(adv_search_query, property_data):
+	adv_search_dict = ["transaction_type", "property_age", "listed_by"]
+	adv_list = [ {"match":{ property_field : property_data.get(property_field) } } 
+							for property_field in adv_search_dict if property_data.get(property_field,False)]
+	must_clause_list = adv_search_query.get("query").get("bool").get("must")
+	must_clause_list.extend(adv_list)
+	if property_data.get("possession"):
+		must_clause_list.append({"match":{ "possession_status": property_data.get("possession") } })
+	range_dict = {"posting_date":"posting_date"}
+	range_list = [ {"range": {range_value:{"lte":property_data.get(range_key)}} } 
+							for range_key, range_value in range_dict.items() if property_data.get(range_key,False)]
+	must_clause_list.extend(range_list)
+	prepare_amenities_query(must_clause_list, property_data)
+	adv_search_query["query"]["bool"]["must"] = must_clause_list
+	if property_data.get("sort_by",""):
+		sort_mapper = {"Posting Date":"posted_datetime", "Budget":"price"}
+		adv_search_query["sort"]  = [{ sort_mapper.get(property_data.get("sort_by")): { "order": property_data.get("sort_order", "desc") }}]	
+
+
+def prepare_amenities_query(must_clause_list, property_data):
+   if property_data.get("amenities"):
+		amenity_query = [ { "match": { "amenities.name" : amenity } } 
+								for amenity in property_data.get("amenities") if amenity ]
+		nested_query = [{
+				          "nested": {
+										"path": "amenities", 
+										"query": { "bool": { 
+																"must":[{ "match" :{ "amenities.status":"Yes" }} ],
+																"should": amenity_query, 
+																"minimum_should_match":1 } 
+															}
+				        			}
+				        }]
+		must_clause_list.extend(nested_query)    
+
+
 def generate_project_search_query(project_data):
 
 	""" 
@@ -270,7 +322,7 @@ def convert_area_to_sqft_for_posting(request_data):
 	uom_mapper = {"Acres" :43560, "Hectares":107639}
 	uom = request_data.get("unit_of_area")
 	validate_for_valid_uom(uom) if uom else ""
-	if uom and uom != "Sq.Ft":
+	if uom and uom != "Sq.Ft.":
 		request_data["carpet_area"] = uom_mapper.get(uom) * request_data.get("carpet_area",0)
 
 
@@ -278,7 +330,7 @@ def convert_area_to_sqft_for_search(request_data):
 	uom_mapper = {"Acres" :43560, "Hectares":107639}
 	uom = request_data.get("unit_of_area")
 	validate_for_valid_uom(uom) if uom else ""
-	if uom and uom != "Sq.Ft":
+	if uom and uom != "Sq.Ft.":
 		for area in ["min_area", "max_area"]:
 			if request_data.get(area,False):
 				request_data[area] = uom_mapper.get(uom) * flt(request_data.get(area,0))
@@ -286,7 +338,7 @@ def convert_area_to_sqft_for_search(request_data):
 
 def convert_area_according_to_uom(response_data, uom):
 	for response in response_data:
-		response["carpet_area"] = get_carpet_area(response.get("carpet_area"),uom) if uom != "Sq.Ft" else response.get("carpet_area")
+		response["carpet_area"] = get_carpet_area(response.get("carpet_area"),uom) if uom != "Sq.Ft." else response.get("carpet_area")
 		response["unit_of_area"] = uom
 
 
@@ -296,8 +348,8 @@ def get_carpet_area(carpet_area, uom):
 
 
 def validate_for_valid_uom(uom):
-	if uom not in ["Sq.Ft", "Acres", "Hectares"]:
-		raise InvalidDataError("Unit of area must be from Sq.Ft, Acres, Hectares")
+	if uom not in ["Sq.Ft.", "Acres", "Hectares"]:
+		raise InvalidDataError("Unit of area must be from Sq.Ft. , Acres, Hectares")
 
 
 def get_discounted_price(request_data):
@@ -326,9 +378,59 @@ def validate_project_posting_data(property_data,file_name):
 	
 		property_details_list.append({key:prop.get(key) for key in prop if key in property_mapper_keys})
 
-	return property_details_list	
+	return property_details_list
 
 
+"""
+	Calculate percent completion while property posting
+
+"""
+
+
+def calculate_percent_completion(prop, mand_list):
+	count = 0
+	if mand_list:
+		length_total_fields = len(mand_list)
+		for field in mand_list:
+			if prop.get(field):
+				count += 1
+		return (count / float(length_total_fields)) * 100
+
+
+
+
+
+""" This is common paginator and response dictionary generator  """
+
+
+
+def init_pagination_and_response_generatrion(request_data, response_data, msg, total_records):
+	
+	from_record = ( request_data.get("page_number",1) - 1 ) * cint( request_data.get("records_per_page",40) ) + 1
+	old_to_record = from_record + request_data.get("records_per_page",40) - 1
+	to_record = (from_record +  len(response_data) - 1) if response_data else old_to_record 
+	no_of_pages = math.ceil( flt(total_records) / request_data.get("records_per_page",40))
+	
+	return {
+				"operation":"Search", 
+				"message":msg ,
+				"total_records":total_records,
+				"records_per_page":request_data.get("records_per_page",40),
+				"from_record":from_record ,
+				"to_record":to_record,
+				"data":response_data, 
+				"user_id":request_data.get("user_id"), 
+				"no_of_pages":no_of_pages
+			}
+
+
+def show_amenities_with_yes_status(response_data):
+	for response in response_data:
+		if response.get("amenities", ""):
+			response["amenities"] = [ amenity for amenity in response.get("amenities") if amenity.get("status") == "Yes"]
+		if response.get("flat_facilities", ""):
+			response["flat_facilities"] = [ facility for facility in response.get("flat_facilities") if facility.get("status") == "Yes"]
+	
 
 
 

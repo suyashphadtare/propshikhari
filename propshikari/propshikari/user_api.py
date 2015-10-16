@@ -48,6 +48,7 @@ def register_user(data):
 			user.insert()
 			args = { "title":"Welcome to Propshikari", "first_name":user_data.get("first_name"), "last_name":user_data.get("last_name"), "user":user_data.get("email"), "password":user_data.get("password") }
 			manage_subscription(user)
+			create_mascot_status_for_user(user_id)
 			send_email(user_data.get("email"), "Welcome to Propshikari", "/templates/new_user_template.html", args)
 			login(data)
 			frappe.response["message"] = "User Registeration done Successfully"
@@ -222,3 +223,85 @@ def validate_for_session_exists(request_data):
 
 
 			
+
+def create_mascot_status_for_user(user_id):
+	
+	"""  Create Mascot Status for Shortlisting and Alerts.   """
+
+	try:
+		ms = frappe.new_doc("Mascot Status")
+		ms.user_id = user_id
+		ms.shortlist_status = 0
+		ms.alert_status = 0
+		ms.mobile_shortlist_status = 0
+		ms.mobile_alert_status = 0
+		ms.save(ignore_permissions=True)
+	except Exception,e:
+		pass
+
+
+
+def get_mascot_status_for_user(data):
+
+	request_data = json.loads(data)
+	user_email = putil.validate_for_user_id_exists(request_data.get("user_id"))
+	validate_mascot_source(request_data)
+	fields = {"website":"shortlist_status, alert_status", "mobile":"mobile_alert_status as alert_status, mobile_shortlist_status as shortlist_status"}
+	try:
+		mascot_data = frappe.db.sql("""
+										select {fields}
+										from `tabMascot Status`
+										where user_id = '{uid}'  
+									""".format(fields=fields.get(request_data.get("mascot_source")), uid=request_data.get("user_id")), as_dict=True)
+		
+		return {
+					"user_id":request_data.get("user_id"),
+					"message":"Mascot Status Found" if mascot_data else "Mascot status not found",
+					"data":mascot_data[0] if mascot_data else ""
+
+				}
+	except Exception,e:
+		pass			
+
+
+
+def update_mascot_status(data):
+
+	request_data = json.loads(data)
+	user_email = putil.validate_for_user_id_exists(request_data.get("user_id"))
+	validate_mascot_source(request_data)
+	mascot_dict = validate_mascot_data(request_data.get("mascot_list"))
+	mobile_dict = {"mobile_shortlist_status":"shortlist_status", "mobile_alert_status":"alert_status"}	
+	fields = {	
+				"website":mascot_dict, 
+				"mobile":{ mobile_field:mascot_dict.get(mascot_field) for mobile_field, mascot_field  in mobile_dict.items() if mascot_dict.has_key(mascot_field)   }
+			 }
+
+	print { mobile_field:mascot_dict.get(mascot_field) for mobile_field, mascot_field  in mobile_dict.items() if mascot_dict.has_key(mascot_field)   }
+	try:
+		ms = frappe.get_doc("Mascot Status", {"user_id":request_data.get("user_id")})
+		ms.update(fields.get(request_data.get("mascot_source")))
+		ms.save(ignore_permissions=True)
+		return {"user_id":request_data.get("user_id"), "message":"Mascot Status Updated Successfully"}
+	except Exception,e:
+		return {"user_id":request_data.get("user_id"), "message":"Mascot status not found against user {0}".format(user_email)}
+				
+
+
+def validate_mascot_source(request_data):
+	if request_data.get("mascot_source"):
+		if request_data.get("mascot_source") not in ["website", "mobile"]:
+			raise InvalidDataError("Invalid input of mascot source field")
+	else:
+		raise MandatoryError("Mandatory field mascot source is missing")
+
+
+def validate_mascot_data(mascot_list):
+	if not mascot_list: 
+		raise MandatoryError("Mandatory field mascot list missing")
+	else:
+		mascot_dict= {}
+		for mascot in mascot_list:
+			mascot_dict[mascot] = 1
+		return mascot_dict	 
+

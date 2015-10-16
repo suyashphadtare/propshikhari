@@ -4,6 +4,7 @@ import propshikari.propshikari.propshikari_api as api
 import propshikari.propshikari.property_masters as masters
 import propshikari.propshikari.project_api as projt
 import propshikari.propshikari.user_api as usr
+import propshikari.propshikari.property_update_api as updt
 from frappe.utils import cstr, cint
 import frappe
 import time
@@ -184,41 +185,61 @@ def create_contact(data):
 	return masters.create_contact_us_record(data)
 
 
+@frappe.whitelist()
+def post_project(data):
+	return projt.post_project(data)
+
+
 
 @frappe.whitelist(allow_guest=True)
 def reindex_data(data):
-	return api.reindex_data(data)
+	return updt.reindex_data(data)
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def update_property_tag(data):
-	return api.update_tags_of_property(data)							
-
-
-@frappe.whitelist(allow_guest=True)
-def get_area_coordinates(data):
-	return api.get_area_cordinates(data)
+	return updt.update_tags_of_property(data)							
 
 
 
 @frappe.whitelist(allow_guest=True)
 def get_property_details(data):
-	return api.get_property_details(data)
+	return updt.get_property_details(data)
 
-
-@frappe.whitelist(allow_guest=True)
-def post_project(data):
-	return projt.post_project(data)
 
 
 @frappe.whitelist(allow_guest=True)
 def get_all_property_data(data):
-	return api.get_all_property_data(data)
+	return updt.get_all_property_data(data)
 
 
 @frappe.whitelist(allow_guest=True)
 def update_property_fields(data):
-	return api.update_property_fields(data)
+	return updt.update_property_fields(data)
+
+
+
+@frappe.whitelist()
+def get_mascot_status(data):
+	return usr.get_mascot_status_for_user(data)
+
+
+@frappe.whitelist()
+def update_mascot_status(data):
+	return usr.update_mascot_status(data) 
+
+
+@frappe.whitelist()
+def make_property_alert(data):
+	return masters.create_property_seen_entry(data)
+
+@frappe.whitelist()
+def get_location_details(data):
+	return api.get_location_details_for_map(data)
+
+
+
+
 
 
 
