@@ -6,7 +6,11 @@ import json
 import time
 import random
 import datetime
+import math
 from api_handler.api_handler.exceptions import *
+
+
+
 
 """
 	Get List of all property types and subtypes.
@@ -28,10 +32,14 @@ def get_property_types(data):
 		return {"operation":"Search","message":response_msg,"data":types_list}	
 
 
+
+
+
 """
 	Get List of all Amenities.
 	return the response in format specified in api 
 """
+
 def get_amenities(data):
 	if data:
 		data = json.loads(data)
@@ -46,10 +54,13 @@ def get_amenities(data):
 		return {"operation":"Search","message":response_msg,"data":amenities_list, "user_id":data.get("user_id")}
 
 
+
+
 """
 	Get List of all Flat Facilities.
 	return the response in format specified in api 
 """
+
 def get_flat_facilities(data):
 	if data:
 		data = json.loads(data)
@@ -398,6 +409,25 @@ def create_contact_us_record(request_data):
 		cs.message = request_data.get("message")
 		cs.email_id = request_data.get("email_id")
 		cs.save(ignore_permissions=True)
-		return {"message":"Contact Submitted","user_id":request_data.get("user_id"), "operation":"Create"}
+		return {"message":"Contact Submitted", "user_id":request_data.get("user_id"), "operation":"Create"}
 	except Exception,e:
-		raise OperationFailed("Contact Us operation failed")	
+		raise OperationFailed("Contact Us operation failed")
+
+
+
+def create_property_seen_entry(data):
+	request_data = json.loads(data)
+	email = putil.validate_for_user_id_exists(request_data.get("user_id"))
+	putil.validate_property_data(request_data, ["property_id"])
+	try:
+		pa = frappe.new_doc("Property Alerts")
+		pa.user_id =request_data.get("user_id")
+		pa.property_id = request_data.get("property_id")
+		pa.save(ignore_permissions=True)
+		return {"operation":"Create", "message":"Alert property {0} registered successfully.".format(request_data.get("property_id"))}
+	except Exception,e:
+		raise OperationFailed("Make Property alerts operation failed")	
+
+
+
+

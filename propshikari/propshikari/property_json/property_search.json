@@ -58,6 +58,37 @@
   "request_id":{
     "is_mandatory": false,
     "field_type": "string"
+  },
+  "posting_date":{
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "possession":{
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "listed_by":{
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "transaction_type":{
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "amenities":{
+    "is_mandatory": false,
+    "field_type": "list"
+  },
+  "property_age":{
+    "is_mandatory":false,
+    "field_type":"string"
+  },
+  "sort_by":{
+    "is_mandatory":false,
+    "field_type":"string"
+  },
+  "sort_order":{
+    "is_mandatory":false,
+    "field_type":"string"
   }
-
  } 

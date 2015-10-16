@@ -2,8 +2,9 @@ from __future__ import unicode_literals
 import frappe
 from frappe.utils import cstr, cint, flt
 from elastic_controller import ElasticSearchController
-from frappe.utils import add_days, getdate, now, nowdate ,random_string ,add_months
+from frappe.utils import add_days, getdate, now, nowdate ,random_string ,add_months, cint
 import property_utils as putil
+from percent_completion import project_mandatory_fields, property_mandatory_fields
 from propshikari_api import store_request_in_elastic_search, add_meta_fields_before_posting, store_property_photos_in_propshikari
 import json ,ast
 import time
@@ -103,7 +104,8 @@ def search_project(request_data):
 
 
 """
-	Post project and create properties
+	Post project and create properties according to 
+	count given in property_details table.
 
 """
 
@@ -163,6 +165,7 @@ def init_for_project_photo_upload(request_data, project_data):
 	project_data["full_size_images"] = property_photo_url_dict.get("full_size",[])
 	project_data["thumbnails"] = property_photo_url_dict.get("thumbnails",[])
 	project_data["project_photo"] = property_photo_url_dict.get("thumbnails")[0] if len(property_photo_url_dict.get("thumbnails")) else ""
+	project_data["percent_completion"] = putil.calculate_percent_completion(project_data, project_mandatory_fields)
 
 
 def init_for_property_posting(project_data):
@@ -190,7 +193,10 @@ def prepare_property_posting_data(project_data):
 		prop_dict["price"] = prop.get("max_price")
 		prop_dict["unit_of_area"] = prop.get("unit_of_area")
 		prop_dict["property_photo"] = project_data.get("project_photo","")
+		prop_dict["flat_facilities"] = putil.prepare_flat_facilities_data([], prop.get("property_type"))
 		prop_dict.update(new_project_data)
+		mandatory_list = property_mandatory_fields.get(prop.get("property_type"))
+		prop_dict["percent_completion"] = putil.calculate_percent_completion(prop_dict, mandatory_list)
 		prop_list = [prop_dict] * cint(prop.get("count"))
 		property_data.extend(prop_list)
 	return property_data	

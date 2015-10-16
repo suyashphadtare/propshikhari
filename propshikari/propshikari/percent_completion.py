@@ -42,3 +42,12 @@ property_mandatory_fields = {
 	
 
 }
+
+
+project_mandatory_fields = ["project_name", "full_size_images", "thumbnails", "location", "amenities", "overview",
+	"price_per_sq_ft", "tag", "no_of_floors", "posting_date", "project_for", "property_details",
+	"property_age", "furnishing_type", "possession", "address","fees_in_percent", "project_tieup_by",
+	"state", "city", "carpet_area", "pincode", "transaction_type", "contact_no","email_id",
+	"contact_person", "geo_location_lat", "geo_location_lon", "project_type","website",
+	"status", "operation", "distance_from_imp_locations", "project_subtype", "project_by",
+	"possession_date", "project_photo", "possession_status"]
