@@ -233,7 +233,7 @@ def update_mascot_status(data):
 def make_property_alert(data):
 	return masters.create_property_seen_entry(data)
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def get_location_details(data):
 	return api.get_location_details_for_map(data)
 
