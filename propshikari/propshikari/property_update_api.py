@@ -119,3 +119,10 @@ def get_updated_fields_dict(request_data, user_email):
 	update_dict.update(request_data.get("fields"))
 	get_modified_datetime(update_dict, user_email)
 	return update_dict
+
+
+def get_amenities_data():
+	return {"data": frappe.db.get_all("Amenities", ["amenity_name","icon"])}
+
+def get_flat_data():
+	return {"data": frappe.db.get_all("Flat Facilities", ["facility","icon"])}

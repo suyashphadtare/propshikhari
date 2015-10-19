@@ -239,6 +239,16 @@ def get_location_details(data):
 
 
 
+@frappe.whitelist(allow_guest=True)
+def get_amenities_data(data):
+	return updt.get_amenities_data()
+
+
+@frappe.whitelist(allow_guest=True)
+def get_flat_data(data):
+	return updt.get_flat_data()
+
+
 
 
 
