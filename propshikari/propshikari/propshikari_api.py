@@ -135,6 +135,7 @@ def search_property(data):
 		adv_search_query = search_query
 		search_query = cstr(search_query)
 		putil.generate_advance_search_query(adv_search_query, property_data)
+		
 		es = ElasticSearchController()
 		response_data, total_records = es.search_document(["property"], adv_search_query, property_data.get("page_number",1), 
 										property_data.get("records_per_page",40), exclude_list)
@@ -408,7 +409,8 @@ def get_property_of_particular_tag(request_data):
 			search_query = { "query":{ "match":{ "tag":request_data.get("tag") } }  } 
 			es = ElasticSearchController()
 			response_data, total_records = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40),exclude_list)	
-			
+			putil.show_amenities_with_yes_status(response_data)
+
 			msg = "Property found for specfied criteria" if len(response_data) else "Property not found"
 			response_dict = putil.init_pagination_and_response_generatrion(request_data, response_data, msg, total_records)
 			response_dict["tag"] = request_data.get("tag")
@@ -473,12 +475,14 @@ def get_shortlisted_property(request_data):
 		try:
 			# generate search_query and resultset & fields to be included in response 
 
-			sp_include_fields= ["property_photo", "city", "location", "carpet_area", "amenities", "no_of_floors", "price",
-					"floor_no", "price_per_sq_ft", "property_id", "property_title", "tag", "possession_status", "property_subtype_option"]
+			sp_include_fields= ["property_photo", "city", "location", "carpet_area", "amenities", "no_of_floors", 
+								"price", "status","floor_no", "price_per_sq_ft", "property_id", "property_title", 
+								"tag", "possession_status", "property_subtype_option"]
 
 			search_query = { "query":{ "ids":{ "values":property_ids_list } }  } 
 			es = ElasticSearchController()
-			response_data, total_records = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40), [], sp_include_fields)	
+			response_data, total_records = es.search_document(["property"], search_query, request_data.get("page_number",1), 
+																request_data.get("records_per_page",40), [], sp_include_fields)	
 			
 			# response data & pagination logic 
 
@@ -493,11 +497,17 @@ def get_shortlisted_property(request_data):
 
 
 
+
 def append_shortlisted_tag(response_data):
 	for response in response_data:
 		new_list = response.get("tag",[])
 		new_list.append("Shortlisted")
 		response["tag"] = new_list
+		if response.get("amenities", ""):
+			response["amenities"] = [ amenity for amenity in response.get("amenities") if amenity.get("status") == "Yes"]
+
+
+
 
 
 
@@ -513,13 +523,14 @@ def get_user_properties(request_data):
 
 			# fields_to_be_excluded from response and resultset generation 
 
-			include_list = ["property_photo", "city", "location", "carpet_area", "amenities", "no_of_floors",
-					"floor_no", "price_per_sq_ft", "property_id", "property_title", "tag"]
+			include_list = ["property_photo", "city", "location", "carpet_area", "amenities", "no_of_floors", "price", "status",
+					"floor_no", "price_per_sq_ft", "property_id", "property_title", "tag", "possession_status", "property_subtype_option"]
 			
 			es = ElasticSearchController()
 			response_data, total_records  = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40), [], include_list)
 			response_data = check_for_shortlisted_property(response_data, request_data.get("user_id"))
-			
+			putil.show_amenities_with_yes_status(response_data)
+
 			# response data & pagination logic
 
 			msg = "User Property Found" if len(response_data) else "User Property not found"
