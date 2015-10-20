@@ -50,6 +50,9 @@ def generate_search_query(property_data):
 	# print search_query
 	return search_query	
 
+
+
+
 def get_range_query(key,value,request_data):
 	new_dict = {}
 	if request_data.get(value[0]) and request_data.get(value[1]):
@@ -61,6 +64,9 @@ def get_range_query(key,value,request_data):
 		new_dict["gte"] = 0
 		new_dict["lte"] = request_data.get(value[1])
 	return new_dict			
+
+
+
 
 
 def validate_property_posting_data(property_data,file_name):
@@ -234,23 +240,21 @@ def init_for_location_or_city_creation(property_data):
 			property_data.pop("location")
 
 
+
 def generate_advance_search_query(adv_search_query, property_data):
-	adv_search_dict = ["transaction_type", "property_age", "listed_by"]
-	adv_list = [ {"match":{ property_field : property_data.get(property_field) } } 
-							for property_field in adv_search_dict if property_data.get(property_field,False)]
+	adv_search_dict = {"transaction_type":"transaction_type", "property_age":"property_age", "listed_by":"listed_by",
+						"possession":"possession_status", "posting_date":"posting_date"}
+	adv_list = [ {"match":{ property_field : property_data.get(request_field) } } 
+							for request_field, property_field in adv_search_dict.items() if property_data.get(request_field,False)]
 	must_clause_list = adv_search_query.get("query").get("bool").get("must")
 	must_clause_list.extend(adv_list)
-	if property_data.get("possession"):
-		must_clause_list.append({"match":{ "possession_status": property_data.get("possession") } })
-	range_dict = {"posting_date":"posting_date"}
-	range_list = [ {"range": {range_value:{"lte":property_data.get(range_key)}} } 
-							for range_key, range_value in range_dict.items() if property_data.get(range_key,False)]
-	must_clause_list.extend(range_list)
 	prepare_amenities_query(must_clause_list, property_data)
 	adv_search_query["query"]["bool"]["must"] = must_clause_list
 	if property_data.get("sort_by",""):
 		sort_mapper = {"Posting Date":"posted_datetime", "Budget":"price"}
 		adv_search_query["sort"]  = [{ sort_mapper.get(property_data.get("sort_by")): { "order": property_data.get("sort_order", "desc") }}]	
+
+
 
 
 def prepare_amenities_query(must_clause_list, property_data):
