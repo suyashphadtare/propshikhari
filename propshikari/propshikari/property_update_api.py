@@ -41,7 +41,7 @@ def get_all_property_data(data):
 def update_tags_of_property(data):
 	request_data = json.loads(data)
 	user_email = putil.validate_for_user_id_exists(request_data.get("user_id"))
-	user_data = frappe.db.get_value("User",{"name":user_email}, "user_type", as_dict=True)
+	user_data = frappe.db.get_value("User",{"email":user_email}, "user_type", as_dict=True)
 	if user_data.get("user_type") == "System User":
 		try:
 			es = ElasticSearchController()
