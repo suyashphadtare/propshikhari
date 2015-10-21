@@ -166,7 +166,7 @@ def update_user_profile(data):
 	city = frappe.db.get_value("City",{ "city_name":request_data.get("city") ,"state_name":request_data.get("state")}, "name")	
 	area = frappe.db.get_value("Area",{ "city_name":city ,"state_name":request_data.get("state"), "area":request_data.get("location")}, "name")
 	dob = getdate(getdate(request_data.get("dob")).strftime("%d-%m-%y")) if request_data.get("dob","") else ""  
-	user_dict = {"first_name":request_data.get("first_name",""), "last_name":request_data.get("last_name",""), "mobile_no": request_data.get("mobile_number",""), "state": request_data.get("state",""), "city":city, "area":area, "address":request_data.get("address",""), "pincode":request_data.get("pin_code",""), "birth_date":dob,"lattitude":request_data.get("geo_location_lat"),"longitude":request_data.get("geo_location_lon")}
+	user_dict = {"first_name":request_data.get("first_name",""), "last_name":request_data.get("last_name",""), "mobile_no": request_data.get("mobile_number",""), "state": request_data.get("state",""), "city":city, "area":area, "address":request_data.get("address",""), "pincode":request_data.get("pincode",""), "birth_date":dob,"lattitude":request_data.get("geo_location_lat"),"longitude":request_data.get("geo_location_lon")}
 	try:
 		# user_dict["user_image"] = store_image_to_propshikari(request_data)
 		user_doc = frappe.get_doc("User",user_email)

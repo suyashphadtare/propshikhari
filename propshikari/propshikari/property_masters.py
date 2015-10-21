@@ -22,10 +22,12 @@ def get_property_types(data):
 		data = json.loads(data)
 		types_list = []
 		
-		for property_type in get_types():
-			subtypes = get_subtypes(property_type[0])
+		property_list = get_ordered_property_types(get_types())
+		for property_type in property_list:
+			subtypes = get_subtypes(property_type)
 			subtypes_list = [d.property_subtype for d in subtypes]
-			types_list.append({"property_type":property_type[0],"sub_types":subtypes_list})
+			check_for_other(subtypes_list)
+			types_list.append({"property_type":property_type,"sub_types":subtypes_list})
 		
 		response_msg = "Property Types Not Found" if len(types_list) == 0 else "Property Types Found"
 			
@@ -33,6 +35,20 @@ def get_property_types(data):
 
 
 
+
+def get_ordered_property_types(property_types):
+	property_types = [ p_type[0] for p_type in property_types]
+	property_list = ["Residential", "Commercial", "Zameen"]
+	for prop in property_types: 
+		if prop not in ["Residential", "Commercial", "Zameen"]:
+			property_list.append(prop)
+	return property_list		
+		
+
+def check_for_other(subtypes_list):
+	if "Other" in subtypes_list:
+		subtypes_list.remove("Other")
+		subtypes_list.append("Other")
 
 
 """
@@ -80,8 +96,7 @@ def get_types():
 		`tabProperty Type`""",as_list=1)
 
 def get_subtypes(property_type):
-	return frappe.db.get_all("Property Subtype",
-		filters={"property_type": property_type},fields=["property_subtype"])
+	return frappe.db.sql(""" select property_subtype from `tabProperty Subtype` where property_type = '{0}' order by property_subtype """.format(property_type), as_dict=True)
 
 def get_amenities_subs(property_type):
 	return frappe.db.get_all("Amenities",
@@ -360,6 +375,7 @@ def create_lead_address_from_user_data(user_data, lead):
 
 
 def create_enquiry(user_data, lead, address, property_details):
+	location = frappe.db.get_value("Area",{"area":property_details.get("location")}, "name")
 	enquiry_child_row = [{
 					"property_id"     :	property_details.get("property_id"),
 					"property_type"   :	property_details.get("property_type"),
@@ -367,7 +383,7 @@ def create_enquiry(user_data, lead, address, property_details):
 					"bhk"             : property_details.get("property_subtype_option",""),
 					"property_name"   :	property_details.get("property_title"),
 					"posting_date"    :	getdate(property_details.get("posting_date")) if property_details.get("posting_date") else "",
-					"location"        : property_details.get("location"),
+					"location"        : location,
 					"address"         : property_details.get("address"),
 					"area"            : property_details.get("carpet_area"),
 					"price"           : property_details.get("price"),
@@ -376,12 +392,17 @@ def create_enquiry(user_data, lead, address, property_details):
 	enq = frappe.get_doc({
 					"doctype":"Enquiry",
 					"lead":lead,
-					"lead_name": user_data.get("first_name") + " " + user_data.get("last_name",""),
+					"lead_name": user_data.get("first_name"),
+					"middle_name":user_data.get("middle_name",""),
+					"last_name":user_data.get("last_name",""),
+					"mobile_no":user_data.get("mobile_no"),
+					"email_id":user_data.get("email"),
+					"lead_from":"Propshikari",
 					"address":address if address else "",
 					"property_type":property_details.get("property_type"),
 					"property_subtype":property_details.get("property_subtype"),
 					"property_subtype_option":property_details.get("property_subtype_option",""),
-					"location":property_details.get("location"),
+					"location": location,
 					"budget_minimum":0,
 					"budget_maximum": property_details.get("price"),
 					"area_minimum":0,
