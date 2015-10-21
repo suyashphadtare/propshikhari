@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 import frappe
 from elasticsearch import Elasticsearch
+from elasticsearch.client import IndicesClient
 from datetime import datetime
 
 
@@ -11,6 +12,7 @@ class ElasticSearchController():
 	    elastic search operations like search,indexing,update. 	
 	"""
 	
+	index_name = frappe.get_hooks("index_name", app_name="propshikari")[0]
 	
 	def __init__(self):
 		self.es = Elasticsearch()
@@ -30,7 +32,7 @@ class ElasticSearchController():
 	   		with no of records to be returned.
 		"""	
 
-		response = self.es.search(index=["propshikari"], doc_type=type_list, body=search_body, from_=(page_no - 1) * no_of_records, size=no_of_records, _source_exclude=exclude_list , _source_include=include_list)
+		response = self.es.search(index="propshikari", doc_type=type_list, body=search_body, from_=(page_no - 1) * no_of_records, size=no_of_records, _source_exclude=exclude_list , _source_include=include_list)
 		total_records = response["hits"]["total"]
 		return [response["_source"] for response in response["hits"]["hits"]] , total_records
 
@@ -51,4 +53,16 @@ class ElasticSearchController():
 		"""  Update Document based on given id in elasticsearch """
 
 		response = self.es.update(index="propshikari", doc_type=type_name ,id=search_id, body=search_body)
-		return response			
+		return response
+
+	
+	def create_index_if_not_exists(self):
+		
+		""" Check if index exists & if not exists create index & types & store their mappings.  """
+		
+		ic = IndicesClient(self.es)
+		response = ic.exists(index=[self.index_name])
+		if not response:			
+			print "index not created"
+		print self.index_name
+

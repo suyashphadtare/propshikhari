@@ -6,6 +6,7 @@ from frappe.utils import add_days, getdate, now, nowdate ,random_string ,add_mon
 from property_masters import create_lead_from_userid, make_conditions_for_duplicate_group
 from percent_completion import property_mandatory_fields
 from frappe.auth import _update_password
+from propshikari_api import store_property_photos_in_propshikari
 import property_utils as putil
 import json ,ast
 import datetime
@@ -126,3 +127,54 @@ def get_amenities_data():
 
 def get_flat_data():
 	return {"data": frappe.db.get_all("Flat Facilities", ["facility","icon"])}
+
+
+
+""" 
+	Update property related fields.
+	Format will be {"property_id":"PROP-100000231-2312", fields:{} }
+	fields dict will contain key-value pairs of property fields which should be updated.
+	amenities & flat_facilities should be in list format.
+	for property photo upload , existing list of full size images & thumbnails is necessary 
+	if images already exists in elasticsearch. & format of property photo data will be same as
+	property posting eg. { "property_photos":[{"file_name":"", "file_data":"", "file_ext":"" }]  } 
+
+"""
+
+
+def update_property(data):
+	request_data = json.loads(data)
+	user_email = putil.validate_for_user_id_exists(request_data.get("user_id"))
+	try:
+		field_dict = putil.validate_property_posting_data(request_data.get("fields"), "property_json/property_mapper.json")
+		get_modified_datetime(field_dict, user_email)
+		update_property_photos(field_dict, request_data.get("fields"), request_data.get("property_id"))
+
+		field_dict["amenities"] = putil.prepare_amenities_data(field_dict.get("amenities",""), field_dict.get("property_type"))
+		field_dict["flat_facilities"] = putil.prepare_flat_facilities_data(field_dict.get("flat_facilities",""), field_dict.get("property_type"))		
+		field_dict["possession_status"] = "Immediate" if field_dict.get("possession") else field_dict.get("possession_date")
+
+		search_query = {"doc": field_dict }
+		es = ElasticSearchController()
+		update_response = es.update_docuemnt("property", request_data.get("property_id"), search_query)
+		return {"opeartion":"Update", "message":"Property details Updated"}
+	except elasticsearch.TransportError:
+		raise DoesNotExistError("Property Id does not exists")
+	except elasticsearch.ElasticsearchException,e:
+		raise ElasticSearchException(e.error)
+	except Exception,e:
+		raise e
+
+
+
+
+def update_property_photos(field_dict, property_fields, custom_id):
+	if field_dict.get("property_photos"):
+		photo_dict = store_property_photos_in_propshikari(field_dict.get("property_photos"), custom_id)
+		full_size_photo = photo_dict.get("full_size").extend(property_fields.get("full_size_images", []))
+		thumbnail_photo = photo_dict.get("thumbnails").extend(property_fields.get("thumbnails", []))
+		field_dict["full_size_images"] = full_size_photo
+		field_dict["thumbnails"] = thumbnail_photo
+		field_dict["property_photo"] = field_dict.get("thumbnails")[0] if len(field_dict.get("thumbnails")) else ""
+
+		
