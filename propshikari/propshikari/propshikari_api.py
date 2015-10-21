@@ -442,7 +442,7 @@ def get_property_contact(request_data):
 			es = ElasticSearchController()
 			response = es.search_document_for_given_id("property",request_data.get("property_id"),[],[])
 			new_response = { "contact_no": response.get("contact_no"), "contact_person":response.get("contact_person")}
-			# create_lead_from_userid(request_data, email, response)
+			create_lead_from_userid(request_data, email, response)
 			return {	
 						"operation":"Search",
 						"message":"Contact Details found" if len(new_response) else "Contact Details Not Found", 
