@@ -248,6 +248,11 @@ def get_amenities_data(data):
 def get_flat_data(data):
 	return updt.get_flat_data()
 
+@frappe.whitelist()
+def update_property(data):
+	return updt.update_property(data)
+
+
 
 
 

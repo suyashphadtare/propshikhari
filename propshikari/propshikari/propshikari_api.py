@@ -135,7 +135,7 @@ def search_property(data):
 		adv_search_query = search_query
 		search_query = cstr(search_query)
 		putil.generate_advance_search_query(adv_search_query, property_data)
-		
+
 		es = ElasticSearchController()
 		response_data, total_records = es.search_document(["property"], adv_search_query, property_data.get("page_number",1), 
 										property_data.get("records_per_page",40), exclude_list)
@@ -552,6 +552,8 @@ def check_for_shortlisted_property(response_data, user_id):
 			new_list.append("Shortlisted")
 			response["tag"] = new_list
 	return response_data		
+
+
 
 
 

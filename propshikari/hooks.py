@@ -38,6 +38,8 @@ app_version = "0.0.1"
 # automatically create page for each record of this doctype
 # website_generators = ["Web Page"]
 
+index_name = "new_prop_test"
+
 # Installation
 # ------------
 
