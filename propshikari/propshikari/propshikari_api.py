@@ -98,6 +98,8 @@ def process_property_data_before_posting(property_data, request_data, email):
 	property_data["discounted_price"] = putil.get_discounted_price(property_data) if property_data.get("discount_percentage") else 0.0
 	mandatory_list = property_mandatory_fields.get(property_data.get("property_type"))
 	property_data["percent_completion"] = putil.calculate_percent_completion(property_data, mandatory_list)
+	if not if property_data.get("possession_date"):
+		property_data.pop("possession_date")
 	return custom_id	
 
 
