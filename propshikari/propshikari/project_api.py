@@ -65,8 +65,7 @@ def search_project(request_data):
 		search_query = putil.generate_project_search_query(project_data)
 		try:
 
-			exclude_list = ["agent_name", "agent_no", "contact_no", "contact_person", "created_by", 
-				"modified_by", "creation_date", "modified_date", "posted_datetime", "modified_datetime"]
+			exclude_list = putil.get_exclude_list_for_search(project_data.get("request_source", ""))
 
 			es = ElasticSearchController()
 			response_data, total_records = es.search_document(["project"], search_query, project_data.get("page_number",1), project_data.get("records_per_page",40), exclude_list)

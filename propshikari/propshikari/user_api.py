@@ -276,8 +276,6 @@ def update_mascot_status(data):
 				"website":mascot_dict, 
 				"mobile":{ mobile_field:mascot_dict.get(mascot_field) for mobile_field, mascot_field  in mobile_dict.items() if mascot_dict.has_key(mascot_field)   }
 			 }
-
-	print { mobile_field:mascot_dict.get(mascot_field) for mobile_field, mascot_field  in mobile_dict.items() if mascot_dict.has_key(mascot_field)   }
 	try:
 		ms = frappe.get_doc("Mascot Status", {"user_id":request_data.get("user_id")})
 		ms.update(fields.get(request_data.get("mascot_source")))

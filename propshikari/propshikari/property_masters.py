@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 import frappe
 from frappe.utils import cstr, cint, getdate
+from elastic_controller import ElasticSearchController
 import property_utils as putil
 import json
 import time
@@ -119,8 +120,8 @@ def create_group_in_hunterscamp(request_data):
 		request_data = json.loads(request_data)
 		putil.validate_for_user_id_exists(request_data.get("user_id"))
 		putil.validate_property_data(request_data, ["operation", "property_type", "property_subtype"])
-		putil.isolate_city_from_location(request_data)
-		group_search_conditions = make_conditions_for_duplicate_group(request_data)
+		putil.init_for_location_or_city_creation(request_data)
+		group_search_conditions = make_conditions_for_duplicate_group(request_data, "Group")
 		group_result = frappe.db.sql(""" select  name from `tabGroup` {0} """.format(group_search_conditions),as_dict=True)
 		if group_result:
 			group_result = [ group.get("name") for group in group_result if group ]
@@ -198,6 +199,8 @@ def shortlist_property(request_data):
 				sp_doc.property_id = request_data.get("property_id")
 				sp_doc.status = "Active"
 				sp_doc.save()
+				es = ElasticSearchController()
+				es.refresh_index()
 			except frappe.MandatoryError,e:
 				raise MandatoryError("Mandatory Field {0} missing".format(e.message))
 			except (frappe.LinkValidationError, frappe.ValidationError)  as e:
@@ -235,8 +238,8 @@ def create_alerts(request_data):
 	request_data = json.loads(request_data)
 	putil.validate_for_user_id_exists(request_data.get("user_id"))
 	putil.validate_property_data(request_data, ["operation", "property_type", "property_subtype"])
-	putil.isolate_city_from_location(request_data)
-	alert_search_conditions = make_conditions_for_duplicate_group(request_data)
+	putil.init_for_location_or_city_creation(request_data)
+	alert_search_conditions = make_conditions_for_duplicate_group(request_data, "Alerts")
 	alert_result = frappe.db.sql(""" select  name from `tabAlerts` {0} """.format(alert_search_conditions),as_dict=True)
 	if alert_result:
 		alert_result = [ alert.get("name") for alert in alert_result if alert ]
@@ -268,8 +271,10 @@ def create_alerts(request_data):
 		return {"operation":"Create", "message":"Alert not created"}
 
 
-def make_conditions_for_duplicate_group(response):
+def make_conditions_for_duplicate_group(response, request_type=None):
 	group_search_conditions = "where operation='{0}' and property_subtype='{1}' and property_type='{2}'  and status = 'Active'   ".format(response.get("operation"),response.get("property_subtype"),response.get("property_type"))
+	if request_type == "Alerts":
+		group_search_conditions += " and user_id = '{0}' ".format(response.get("user_id"))
 	group_field_set = {"property_subtype_option" ,"min_area", "max_area", "min_budget", "max_budget", "location", "city", "unit_of_area"}
 	request_field_set = set()
 

@@ -93,7 +93,7 @@ def validate_property_posting_data(property_data,file_name):
 def validate_for_field_type(schema, field_value, field_name):
 	field_type = schema.get("field_type")
 	type_mapper = {"string":unicode, "number":(int,long,float), "integer":int, "list":list, "object":dict, "nested":list}
-	if not isinstance(field_value,type_mapper.get(field_type)):
+	if not isinstance(field_value, type_mapper.get(field_type)) and field_value:
 		raise InvalidDataError("Invalid input of field {0}".format(field_name))
 	if field_type == "nested":
 	   if isinstance(field_value,list):
@@ -438,7 +438,12 @@ def show_amenities_with_yes_status(response_data):
 
 
 
-
+def get_exclude_list_for_search(request_source):
+	exclude_list = ["agent_name", "agent_no", "contact_no", "contact_person", "created_by", 
+			"modified_by", "creation_date", "modified_date", "posted_datetime", "modified_datetime"]
+	if request_source == "Hunterscamp":
+		exclude_list = ["created_by", "modified_by", "creation_date", "modified_date", "posted_datetime", "modified_datetime"]		
+	return exclude_list	
 
 
 
