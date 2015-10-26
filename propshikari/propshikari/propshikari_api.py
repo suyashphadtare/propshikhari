@@ -128,8 +128,7 @@ def search_property(data):
 		
 		# generate search query & result generation & list of fields which should be excluded.
 
-		exclude_list = ["agent_name", "agent_no", "contact_no", "contact_person", "created_by", 
-			"modified_by", "creation_date", "modified_date", "posted_datetime", "modified_datetime"]
+		exclude_list = putil.get_exclude_list_for_search(property_data.get("request_source", ""))
 
 		search_query = putil.generate_search_query(property_data)
 		adv_search_query = search_query

@@ -51,6 +51,8 @@ def update_tags_of_property(data):
 			search_query = search_query = {"doc": response }
 			es = ElasticSearchController()
 			update_response = es.update_docuemnt("property", request_data.get("property_id"), search_query)
+			es = ElasticSearchController()
+			es.refresh_index()
 			return {	
 						"operation":"update", 
 						"user_id":request_data.get("user_id"), 

@@ -13,14 +13,14 @@ class ElasticSearchController():
 	"""
 	
 	index_name = frappe.get_hooks("index_name", app_name="propshikari")[0]
-	
-	def __init__(self):
-		self.es = Elasticsearch()
+	es = Elasticsearch()
 
+	def __init__(self):
+		self.create_index_if_not_exists()
 
 	
 	def index_document(self,type_name, data, custom_id):
-		response = self.es.index(index="propshikari", doc_type=type_name, body=data, id=custom_id)	
+		response = self.es.index(index=self.index_name, doc_type=type_name, body=data, id=custom_id)	
 		return response
 
 	
@@ -32,7 +32,7 @@ class ElasticSearchController():
 	   		with no of records to be returned.
 		"""	
 
-		response = self.es.search(index="propshikari", doc_type=type_list, body=search_body, from_=(page_no - 1) * no_of_records, size=no_of_records, _source_exclude=exclude_list , _source_include=include_list)
+		response = self.es.search(index=self.index_name, doc_type=type_list, body=search_body, from_=(page_no - 1) * no_of_records, size=no_of_records, _source_exclude=exclude_list , _source_include=include_list)
 		total_records = response["hits"]["total"]
 		return [response["_source"] for response in response["hits"]["hits"]] , total_records
 
@@ -43,7 +43,7 @@ class ElasticSearchController():
 
 		""" Get document of given ids from elasticsearch """
 
-		response = self.es.get(index="propshikari", doc_type=type_list, id=search_id, _source_exclude=exclude_list ,_source_include=include_list)
+		response = self.es.get(index=self.index_name, doc_type=type_list, id=search_id, _source_exclude=exclude_list ,_source_include=include_list)
 		return response.get("_source")
 
 
@@ -52,7 +52,7 @@ class ElasticSearchController():
 
 		"""  Update Document based on given id in elasticsearch """
 
-		response = self.es.update(index="propshikari", doc_type=type_name ,id=search_id, body=search_body)
+		response = self.es.update(index=self.index_name, doc_type=type_name ,id=search_id, body=search_body)
 		return response
 
 	
@@ -62,7 +62,25 @@ class ElasticSearchController():
 		
 		ic = IndicesClient(self.es)
 		response = ic.exists(index=[self.index_name])
-		if not response:			
-			print "index not created"
-		print self.index_name
+		if not response:
+			es_mappings = ElasticSearchController.get_index_mapper_dict()			
+			index_response = ic.create(index=self.index_name, body={ "mappings":es_mappings })
+
+
+	@staticmethod
+	def get_index_mapper_dict():
+		from elastic_search_mappers import project_mapper, property_mapper, request_mapper
+		mappings = {}
+		mappings.update(project_mapper.project_mapper)
+		mappings.update(property_mapper.property_mapper)
+		mappings.update(request_mapper.request_mapper)
+		return mappings
+
+
+	def refresh_index(self):
+		ic = IndicesClient(self.es)
+		response = ic.refresh(index=[self.index_name])
+		print response
+
+
 

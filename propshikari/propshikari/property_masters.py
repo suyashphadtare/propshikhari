@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 import frappe
 from frappe.utils import cstr, cint, getdate
+from elastic_controller import ElasticSearchController
 import property_utils as putil
 import json
 import time
@@ -198,6 +199,8 @@ def shortlist_property(request_data):
 				sp_doc.property_id = request_data.get("property_id")
 				sp_doc.status = "Active"
 				sp_doc.save()
+				es = ElasticSearchController()
+				es.refresh_index()
 			except frappe.MandatoryError,e:
 				raise MandatoryError("Mandatory Field {0} missing".format(e.message))
 			except (frappe.LinkValidationError, frappe.ValidationError)  as e:
