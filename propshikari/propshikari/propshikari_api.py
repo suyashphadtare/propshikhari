@@ -99,7 +99,7 @@ def process_property_data_before_posting(property_data, request_data, email):
 	mandatory_list = property_mandatory_fields.get(property_data.get("property_type"))
 	property_data["percent_completion"] = putil.calculate_percent_completion(property_data, mandatory_list)
 	if not property_data.get("possession_date"):
-		property_data.pop("possession_date")
+		property_data.pop("possession_date", None)
 	return custom_id	
 
 
@@ -311,7 +311,7 @@ def search_group_with_given_criteria(request_data):
 		try:
 			es = ElasticSearchController()
 			response = es.search_document_for_given_id("request",request_data.get("request_id"))
-			group_search_conditions = make_conditions_for_duplicate_group(response)
+			group_search_conditions = make_conditions_for_duplicate_group(response, "Group")
 			group_result = frappe.db.sql(""" SELECT    
 												name AS group_id,
 												operation,
