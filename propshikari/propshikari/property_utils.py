@@ -153,7 +153,7 @@ def generate_search_query_from_property_data(property_data):
 
 def validate_for_postings_available(email):
 	user_data = frappe.db.get_value("User",{"email":email}, "user_type", as_dict=True)
-	if user_data.get("user_type") == "System User":
+	if user_data.get("user_type") != "System User":
 		subs_name = frappe.db.get_value("User Subscription",{"user":email},"name")
 		if subs_name:
 			subs_doc = frappe.get_doc("User Subscription",subs_name)
