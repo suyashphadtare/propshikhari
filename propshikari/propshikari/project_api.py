@@ -61,7 +61,7 @@ def search_project(request_data):
 	if request_data:
 		project_data = json.loads(request_data)
 		project_data = putil.validate_property_posting_data(project_data,"property_json/project_search.json")
-		putil.isolate_city_from_location(project_data)
+		putil.init_for_location_or_city_creation(project_data)
 		search_query = putil.generate_project_search_query(project_data)
 		try:
 
