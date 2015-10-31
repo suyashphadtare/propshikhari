@@ -72,8 +72,8 @@ def search_project(request_data):
 			if not project_data.get("request_id"):	
 				request_id = store_request_in_elastic_search(project_data, search_query, "Project Search")
 			response_data = putil.get_date_diff_from_posting(response_data)
-			property_subtype_option = project_data.get("property_subtype_option","") 
-			get_valid_property_subtype_option(response_data, property_subtype_option) if property_subtype_option else ""
+			# property_subtype_option = project_data.get("property_subtype_option","") 
+			# get_valid_property_subtype_option(response_data, property_subtype_option) if property_subtype_option else ""
 
 
 			response_msg = "Project found for specfied criteria" if len(response_data) else "Project not found"
@@ -212,9 +212,10 @@ def get_property_specific_keys(project_data):
 
 
 def get_valid_property_subtype_option(response_data, property_subtype_option):
+	property_subtype_option = property_subtype_option.split(",")
 	for response in response_data:
 		if response.get("property_details"):
-			response["property_details"] = [ prop for prop in response.get("property_details") if prop.get("property_subtype_option").lower() == property_subtype_option.lower() ]
+			response["property_details"] = [ prop for prop in response.get("property_details") if prop.get("property_subtype_option") in property_subtype_option ]
 
 
 
