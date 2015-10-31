@@ -407,7 +407,8 @@ def get_property_of_particular_tag(request_data):
 			exclude_list = ["agent_name", "agent_no", "contact_no", "contact_person", "created_by", 
 				"modified_by", "creation_date", "modified_date", "posted_datetime", "modified_datetime"]
 
-			search_query = { "query":{ "match":{ "tag":request_data.get("tag") } }  } 
+			must_clause_list = [{ "match":{ "tag":request_data.get("tag") } }, { "match":{ "status":"Active" } } ] 	
+			search_query = { "query":{ "bool":{ "must":must_clause_list } } } 
 			es = ElasticSearchController()
 			response_data, total_records = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40),exclude_list)	
 			putil.show_amenities_with_yes_status(response_data)
