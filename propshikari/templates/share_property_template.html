@@ -4,8 +4,8 @@
 </head>
 <body>
 <h4>{{ title }}</h4>
-<p>{{_("Dear  Customer")}},</p>
-<p>{{_(" Following are the properties which are shared by")}} {{ first_name }}{% if last_name %} {{ last_name}}{% endif %}.</p>
+<p>{{_("Dear Customer")}},</p>
+<p>{{_("Following are the properties which are shared by")}} {{ first_name }}{% if last_name %} {{ last_name}}{% endif %}.</p>
 <br>
 <table style="border-collapse: collapse;width:100%">
 <tr>
@@ -15,10 +15,11 @@
 	<th style=" border: 1px solid black;width:15%">Location</th>
 	<th style=" border: 1px solid black;width:10%">Price</th>
 	<th style=" border: 1px solid black;width:10%">Area</th>
-	<th style=" border: 1px solid black;width:20%">Comments By {{ first_name }}</th>
+	<th style=" border: 1px solid black;width:15%">Comments By {{ first_name }}</th>
+	<th style=" border: 1px solid black;width:20%">Property Link</th>
 </tr>	
 {% for property in property_data %}
- <tr >
+ <tr style="height:30px">
  	<td style=" border: 1px solid black;text-align:center">{{ loop.index }}</td>
  	<td style=" border: 1px solid black;">{{ property.get("property_title") }}</td>
  	<td style=" border: 1px solid black;text-align:center">{{  property.get("property_type") }}</td>
@@ -26,6 +27,8 @@
  	<td style=" border: 1px solid black;text-align:center">{{ property.get("price") }}</td>
  	<td style=" border: 1px solid black;text-align:center">{{ property.get("carpet_area") }}</td>
  	<td style=" border: 1px solid black;">{{ property.get("comments") }}</td>
+ 	<td style=" border: 1px solid black"><a href="http://www.propshikari.com/#/propertypersonal/{{ property.get("property_id") }}" target="_blank" style="padding-left:8px;"><button type="button" style="background-color: #E7EBEF;border-color: transparent; width:80%;">View</button>
+ 	</a></td>
  </tr>	
 {% endfor %}
 </table>

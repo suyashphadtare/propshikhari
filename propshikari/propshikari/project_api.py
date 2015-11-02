@@ -32,7 +32,9 @@ def get_project_of_given_id(request_data):
 		exclude_list = putil.get_exclude_list_for_search("Hunterscamp")
 		es = ElasticSearchController()
 		response = es.search_document_for_given_id("project", request_data.get("project_id"), exclude_list)
-		return {"operation":"Search", "message":"Project details found" if len(response) else "Project Not Found", "user_id":request_data.get("user_id"), "data":response}
+		response_data = putil.get_date_diff_from_posting([response])
+		putil.show_amenities_with_yes_status(response_data)
+		return {"operation":"Search", "message":"Project details found" if len(response) else "Project Not Found", "user_id":request_data.get("user_id"), "data":response_data[0]}
 	except elasticsearch.TransportError:
 		raise DoesNotExistError("Project Id does not exists")
 	except Exception,e:
@@ -96,9 +98,9 @@ def search_project(request_data):
 
 
 def get_project_include_fields(request_source):
-	include_list = ["project_id", "project_name", "project_type", "project_by", "project_subtype",
-	"property_details","website", "email_id", "contact_person", "project_photo", "location",
-	"address", "state", "city", "pincode", "project_for", "amenities"]
+	include_list = ["project_id", "project_name", "project_type", "project_by", "project_subtype","property_details",
+	"website", "email_id", "contact_person", "project_photo", "location","address", "state", "city", 
+	"pincode", "project_for", "amenities", "no_of_floors", "distance_from_imp_locations", "posting_date"]
 	if request_source == "Hunterscamp":
 		include_list = []
 	return include_list

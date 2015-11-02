@@ -204,13 +204,19 @@ def get_date_diff_from_posting(response_data):
 		current_date = datetime.now()
 		if response.get("posting_date"):
 			posting_date = datetime.strptime(response.get("posting_date"), "%d-%m-%Y")
-			r = relativedelta.relativedelta(current_date, posting_date) 
+			r = relativedelta.relativedelta(current_date, posting_date)
 			if r.years:
 				response["elapsed_time"] = "{0} year ago".format(r.years)
 			elif r.months:
 				response["elapsed_time"] = "{0} month ago".format(r.months)
 			elif r.days:
 				response["elapsed_time"] = "{0} days ago".format(r.days)
+			elif r.hours:
+				response["elapsed_time"] = "{0} hours ago".format(r.hours)
+			elif r.minutes:
+				response["elapsed_time"] = "{0} minutes ago".format(r.minutes)
+			elif r.seconds:
+				response["elapsed_time"] = "{0} seconds ago".format(r.seconds)			
 	return response_data
 
 
