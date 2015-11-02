@@ -28,10 +28,10 @@ def get_project_of_given_id(request_data):
 	if not request_data.get("project_id"):
 		raise MandatoryError("Project id does not exists") 
 	try:
-		project_fields = ["project_id", "project_name", "project_type", "project_by", "project_subtype",
-						   "property_details","website", "contact_no", "email_id", "contact_person", "project_photo"]
+
+		exclude_list = putil.get_exclude_list_for_search("Hunterscamp")
 		es = ElasticSearchController()
-		response = es.search_document_for_given_id("project", request_data.get("project_id"), [], project_fields)
+		response = es.search_document_for_given_id("project", request_data.get("project_id"), exclude_list)
 		return {"operation":"Search", "message":"Project details found" if len(response) else "Project Not Found", "user_id":request_data.get("user_id"), "data":response}
 	except elasticsearch.TransportError:
 		raise DoesNotExistError("Project Id does not exists")
@@ -57,14 +57,15 @@ def search_project(request_data):
 		putil.init_for_location_or_city_creation(project_data)
 		search_query = putil.generate_project_search_query(project_data)
 		try:
-
+			project_fields = get_project_include_fields(project_data.get("request_source", ""))
 			exclude_list = putil.get_exclude_list_for_search(project_data.get("request_source", ""))
 
 			es = ElasticSearchController()
-			response_data, total_records = es.search_document(["project"], search_query, project_data.get("page_number",1), project_data.get("records_per_page",40), exclude_list)
+			response_data, total_records = es.search_document(["project"], search_query, project_data.get("page_number",1), project_data.get("records_per_page",40), exclude_list, project_fields)
 			if not project_data.get("request_id"):	
 				request_id = store_request_in_elastic_search(project_data, search_query, "Project Search")
 			response_data = putil.get_date_diff_from_posting(response_data)
+			putil.show_amenities_with_yes_status(response_data)
 			# property_subtype_option = project_data.get("property_subtype_option","") 
 			# get_valid_property_subtype_option(response_data, property_subtype_option) if property_subtype_option else ""
 
@@ -92,6 +93,15 @@ def search_project(request_data):
 		except Exception,e:
 			raise e
 
+
+
+def get_project_include_fields(request_source):
+	include_list = ["project_id", "project_name", "project_type", "project_by", "project_subtype",
+	"property_details","website", "email_id", "contact_person", "project_photo", "location",
+	"address", "state", "city", "pincode", "project_for", "amenities"]
+	if request_source == "Hunterscamp":
+		include_list = []
+	return include_list
 
 
 
