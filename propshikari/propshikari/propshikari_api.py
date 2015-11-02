@@ -479,7 +479,7 @@ def get_shortlisted_property(request_data):
 
 			sp_include_fields= ["property_photo", "city", "location", "carpet_area", "amenities", "no_of_floors", 
 								"price", "status","floor_no", "price_per_sq_ft", "property_id", "property_title", 
-								"tag", "possession_status", "property_subtype_option"]
+								"tag", "possession_status", "property_subtype_option", "unit_of_area", "property_age"]
 
 			search_query = { "query":{ "ids":{ "values":property_ids_list } }  } 
 			es = ElasticSearchController()
