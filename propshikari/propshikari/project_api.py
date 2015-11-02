@@ -32,13 +32,6 @@ def get_project_of_given_id(request_data):
 						   "property_details","website", "contact_no", "email_id", "contact_person", "project_photo"]
 		es = ElasticSearchController()
 		response = es.search_document_for_given_id("project", request_data.get("project_id"), [], project_fields)
-		response["properties"]= {}
-		for prop in response.get("property_details"):
-			if not response["properties"].has_key(prop.get("property_type")):
-				response["properties"][prop.get("property_type")] = { "option":{ prop.get("property_subtype_option"):{ "count":prop.get("count"), "area":prop.get("carpet_area")} }}
-			else:
-				response["properties"][prop.get("property_type")]["option"][prop.get("property_subtype_option")] = 	{ "count":prop.get("count"), "area":prop.get("carpet_area")} 
-		response.pop("property_details")
 		return {"operation":"Search", "message":"Project details found" if len(response) else "Project Not Found", "user_id":request_data.get("user_id"), "data":response}
 	except elasticsearch.TransportError:
 		raise DoesNotExistError("Project Id does not exists")
