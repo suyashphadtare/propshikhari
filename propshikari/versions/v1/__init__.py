@@ -131,7 +131,7 @@ def share_property(data):
 	return api.share_property(data)
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def get_property_images(data):		
 	return api.get_property_images(data)
 

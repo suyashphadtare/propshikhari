@@ -3,6 +3,7 @@ import frappe
 from frappe.utils import cstr, cint, getdate
 from elastic_controller import ElasticSearchController
 import property_utils as putil
+from frappe.utils import get_datetime
 import json
 import time
 import random
@@ -337,17 +338,18 @@ def create_lead_from_userid(request_data, email, response):
 	user_data = frappe.db.get_value("User", {"email":email}, '*',as_dict=True)
 	try:
 		lead_name = frappe.db.get_value("Lead",{"email_id":email},"name")
-		if not lead_name:
-			lead = frappe.new_doc("Lead")
-			lead.lead_name = user_data.get("first_name")
-			lead.email_id = user_data.get("email")
-			lead.lead_from = "Propshikari"
-			lead.mobile_no = user_data.get("mobile_no")
-			lead.state = user_data.get("state")
-			lead.city = user_data.get("city")
-			lead.save(ignore_permissions=True)
-			lead_name = lead.name
-			address_nm = create_lead_address_from_user_data(user_data, lead_name)
+		if create_show_property_contact_entry(user_data, response):
+			if not lead_name:
+				lead = frappe.new_doc("Lead")
+				lead.lead_name = user_data.get("first_name")
+				lead.email_id = user_data.get("email")
+				lead.lead_from = "Propshikari"
+				lead.mobile_no = user_data.get("mobile_no")
+				lead.state = user_data.get("state")
+				lead.city = user_data.get("city")
+				lead.save(ignore_permissions=True)
+				lead_name = lead.name
+				address_nm = create_lead_address_from_user_data(user_data, lead_name)
 		if not frappe.db.sql(""" select e.name from 
 									`tabEnquiry` e , `tabProperty Details` pd
 									where  pd.parent = e.name 
@@ -361,6 +363,23 @@ def create_lead_from_userid(request_data, email, response):
 		print response.get("property_id")
 		print frappe.get_traceback()
 
+
+def create_show_property_contact_entry(user_data, response):
+	if not frappe.db.get_value("Show Contact Property", {"user_id":user_data.get("user_id"), "property_id":response.get("property_id")}, "name"):
+		doc = frappe.new_doc("Show Contact Property")
+		doc.user_id = user_data.get("user_id")
+		doc.property_id = response.get("property_id")
+		doc.property_title = response.get("property_title")
+		doc.property_type = response.get("property_type")
+		doc.property_subtype = response.get("property_subtype")
+		doc.visiting_date = get_datetime()
+		doc.save(ignore_permissions=True)
+		return True
+	else:
+		scp = frappe.get_doc("Show Contact Property", {"user_id":user_data.get("user_id"), "property_id":response.get("property_id")} )
+		scp.visiting_date = get_datetime()
+		scp.save(ignore_permissions=True)
+		return False
 
 
 def create_lead_address_from_user_data(user_data, lead):
