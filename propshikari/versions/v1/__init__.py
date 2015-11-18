@@ -141,12 +141,12 @@ def update_property_status(data):
 	return api.update_property_status(data)
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def report_feedback(data):
 	return masters.create_feedback(data)
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def get_similar_properties(data):
 	return api.get_similar_properties(data)
 
@@ -219,12 +219,12 @@ def update_property_fields(data):
 
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def get_mascot_status(data):
 	return usr.get_mascot_status_for_user(data)
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def update_mascot_status(data):
 	return usr.update_mascot_status(data) 
 
