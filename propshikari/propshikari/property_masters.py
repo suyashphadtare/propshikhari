@@ -350,14 +350,16 @@ def create_lead_from_userid(request_data, email, response):
 				lead.save(ignore_permissions=True)
 				lead_name = lead.name
 				address_nm = create_lead_address_from_user_data(user_data, lead_name)
-		if not frappe.db.sql(""" select e.name from 
-									`tabEnquiry` e , `tabProperty Details` pd
-									where  pd.parent = e.name 
-									and pd.property_id = '{0}'
-									and e.lead = '{1}'
-			                  """.format(response.get("property_id"), lead_name)):
-			address_nm = frappe.db.get_value("Address", {"is_primary_address":1, "lead":lead_name},"name") 
-			create_enquiry(user_data, lead_name, address_nm, response)
+			address_nm = frappe.db.get_value("Address", {"is_primary_address":1, "lead":lead_name},"name")		
+			if not frappe.db.get_value("Enquiry", {"lead":lead_name}, "name"):
+				create_enquiry(user_data, lead_name, address_nm, response) 		
+			elif not frappe.db.sql(""" select e.name from 
+											`tabEnquiry` e , `tabProperty Details` pd
+											where  pd.parent = e.name 
+											and pd.property_id = '{0}'
+											and e.lead = '{1}'
+					                  """.format(response.get("property_id"), lead_name)):
+				update_enquiry(lead_name, response)	
 	except Exception,e:
 		print "lead & Enquiry creation Error"
 		print response.get("property_id")
@@ -399,7 +401,58 @@ def create_lead_address_from_user_data(user_data, lead):
 
 
 def create_enquiry(user_data, lead, address, property_details):
-	location = frappe.db.get_value("Area",{"area":property_details.get("location")}, "name")
+	city_id = frappe.db.get_value("City", {"city_name":property_details.get("city")}, "name")
+	location = frappe.db.get_value("Area",{"area":property_details.get("location"), "city_name":city_id}, "name")
+	enquiry_child_row = get_enquiry_child_row(property_details, location)
+	property_criteria = get_basic_property_details(property_details, location)
+	property_criteria.update({
+					"doctype":"Enquiry",
+					"lead":lead,
+					"lead_name": user_data.get("first_name"),
+					"middle_name":user_data.get("middle_name",""),
+					"last_name":user_data.get("last_name",""),
+					"mobile_no":user_data.get("mobile_no"),
+					"email_id":user_data.get("email"),
+					"lead_from":"Propshikari",
+					"address":address if address else "",					
+					"enquiry_from":"Lead",
+					"property_details":enquiry_child_row
+				})
+	enq = frappe.get_doc(property_criteria)
+	enq.flags.ignore_permissions = True
+	enq.insert()
+
+
+
+def update_enquiry(lead_name, property_details):
+	city_id = frappe.db.get_value("City", {"city_name":property_details.get("city")}, "name")
+	location = frappe.db.get_value("Area",{"area":property_details.get("location"), "city_name":city_id}, "name")
+	enquiry_child_row = get_enquiry_child_row(property_details, location)
+	property_criteria = get_basic_property_details(property_details, location)
+	eq = frappe.get_doc("Enquiry", {"lead":lead_name})
+	eq_child = eq.append("property_details", {})
+	eq_child.update(enquiry_child_row[0])
+	eq.update(property_criteria)
+	eq.save(ignore_permissions=True)
+
+
+
+def get_basic_property_details(property_details, location):
+	return {
+			"operation":property_details.get("operation"),
+			"property_type":property_details.get("property_type"),
+			"property_subtype":property_details.get("property_subtype"),
+			"property_subtype_option":property_details.get("property_subtype_option",""),
+			"location": location,
+			"budget_minimum":0,
+			"budget_maximum": property_details.get("price"),
+			"area_minimum":0,
+			"area_maximum":property_details.get("carpet_area")
+		}
+
+
+
+def get_enquiry_child_row(property_details, location):
 	enquiry_child_row = [{
 					"property_id"     :	property_details.get("property_id"),
 					"property_type"   :	property_details.get("property_type"),
@@ -413,32 +466,7 @@ def create_enquiry(user_data, lead, address, property_details):
 					"price"           : property_details.get("price"),
 					"bathroom"        : property_details.get("no_of_bathroom")
 			}]
-	enq = frappe.get_doc({
-					"doctype":"Enquiry",
-					"lead":lead,
-					"lead_name": user_data.get("first_name"),
-					"middle_name":user_data.get("middle_name",""),
-					"last_name":user_data.get("last_name",""),
-					"mobile_no":user_data.get("mobile_no"),
-					"email_id":user_data.get("email"),
-					"lead_from":"Propshikari",
-					"address":address if address else "",
-					"property_type":property_details.get("property_type"),
-					"property_subtype":property_details.get("property_subtype"),
-					"property_subtype_option":property_details.get("property_subtype_option",""),
-					"location": location,
-					"budget_minimum":0,
-					"budget_maximum": property_details.get("price"),
-					"area_minimum":0,
-					"area_maximum":property_details.get("carpet_area"),
-					"enquiry_from":"Lead",
-					"property_details":enquiry_child_row
-				})
-	enq.flags.ignore_permissions = True
-	enq.insert()
-
-
-
+	return enquiry_child_row		
 
 
 
