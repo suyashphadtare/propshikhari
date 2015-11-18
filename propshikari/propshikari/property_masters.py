@@ -9,6 +9,7 @@ import time
 import random
 import datetime
 import math
+from collections import defaultdict
 from api_handler.api_handler.exceptions import *
 
 
@@ -26,10 +27,10 @@ def get_property_types(data):
 		
 		property_list = get_ordered_property_types(get_types())
 		for property_type in property_list:
-			subtypes = get_subtypes(property_type)
-			subtypes_list = [d.property_subtype for d in subtypes]
-			check_for_other(subtypes_list)
-			types_list.append({"property_type":property_type,"sub_types":subtypes_list})
+			buy_subtypes = get_subtypes(property_type, "buy")
+			rent_subtypes = get_subtypes(property_type, "rent")
+			subtype_options = get_property_subtype_option(property_type)
+			types_list.append({"property_type":property_type, "sub_types":{"Buy":buy_subtypes, "Rent":rent_subtypes}, "subtype_options":subtype_options})
 		
 		response_msg = "Property Types Not Found" if len(types_list) == 0 else "Property Types Found"
 			
@@ -52,6 +53,15 @@ def check_for_other(subtypes_list):
 		subtypes_list.remove("Other")
 		subtypes_list.append("Other")
 
+
+def get_property_subtype_option(property_type):
+	subtype_options = frappe.db.get_all("Property Subtype Option",
+		filters={"property_type": property_type},fields=["property_subtype","property_subtype_option"])
+	option_dict = defaultdict(list)
+	for subtype in subtype_options:
+		option_dict[subtype.get("property_subtype")].append(subtype.get("property_subtype_option"))  
+	return option_dict
+	
 
 """
 	Get List of all Amenities.
@@ -97,8 +107,12 @@ def get_types():
 	return frappe.db.sql("""select property_type from 
 		`tabProperty Type`""",as_list=1)
 
-def get_subtypes(property_type):
-	return frappe.db.sql(""" select property_subtype from `tabProperty Subtype` where property_type = '{0}' order by property_subtype """.format(property_type), as_dict=True)
+def get_subtypes(property_type, operation):
+	subtypes = frappe.db.sql(""" select property_subtype from `tabProperty Subtype` where property_type = '{0}' and {1}=1 order by property_subtype """.format(property_type, operation), as_dict=True)
+	subtypes_list = [d.property_subtype for d in subtypes]
+	check_for_other(subtypes_list)
+	return subtypes_list
+
 
 def get_amenities_subs(property_type):
 	return frappe.db.get_all("Amenities",
