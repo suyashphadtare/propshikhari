@@ -29,7 +29,8 @@ def get_property_types(data):
 		for property_type in property_list:
 			buy_subtypes = get_subtypes(property_type, "buy")
 			rent_subtypes = get_subtypes(property_type, "rent")
-			subtype_options = get_property_subtype_option(property_type)
+			subtypes = get_all_subtypes(buy_subtypes, rent_subtypes)
+			subtype_options = get_property_subtype_option(property_type, subtypes)
 			types_list.append({"property_type":property_type, "sub_types":{"Buy":buy_subtypes, "Rent":rent_subtypes}, "subtype_options":subtype_options})
 		
 		response_msg = "Property Types Not Found" if len(types_list) == 0 else "Property Types Found"
@@ -37,6 +38,11 @@ def get_property_types(data):
 		return {"operation":"Search","message":response_msg,"data":types_list}	
 
 
+def get_all_subtypes(buy_subtypes, rent_subtypes):
+	subtypes= []
+	subtypes.extend(buy_subtypes)
+	subtypes.extend(rent_subtypes)
+	return list(set(subtypes))
 
 
 def get_ordered_property_types(property_types):
@@ -54,12 +60,13 @@ def check_for_other(subtypes_list):
 		subtypes_list.append("Other")
 
 
-def get_property_subtype_option(property_type):
+def get_property_subtype_option(property_type, subtypes):
 	subtype_options = frappe.db.get_all("Property Subtype Option",
-		filters={"property_type": property_type},fields=["property_subtype","property_subtype_option"])
+		filters={"property_type": property_type},fields=["property_subtype_option"])
+	subtype_options = [sub_type_option.get("property_subtype_option") for sub_type_option in subtype_options]
 	option_dict = defaultdict(list)
-	for subtype in subtype_options:
-		option_dict[subtype.get("property_subtype")].append(subtype.get("property_subtype_option"))  
+	for subtype in subtypes:
+		option_dict[subtype].extend(subtype_options)  
 	return option_dict
 	
 
