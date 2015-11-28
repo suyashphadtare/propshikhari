@@ -1,6 +1,5 @@
 <html>
 <head>
-<link rel="stylesheet" type="text/css" href="/templates/share_property.css">
 </head>
 <body>
 <h4>{{ title }}</h4>
@@ -11,12 +10,13 @@
 <tr>
 	<th style=" border: 1px solid black;width:5%">Sr No.</th>
 	<th style=" border: 1px solid black;width:20%">Property Title</th>
-	<th style=" border: 1px solid black;width:15%">Property Type</th>
+	<th style=" border: 1px solid black;width:10%">Property Type</th>
 	<th style=" border: 1px solid black;width:15%">Location</th>
 	<th style=" border: 1px solid black;width:10%">Price</th>
 	<th style=" border: 1px solid black;width:10%">Area</th>
 	<th style=" border: 1px solid black;width:15%">Comments By {{ first_name }}</th>
-	<th style=" border: 1px solid black;width:20%">Property Link</th>
+	<th style=" border: 1px solid black;width:10%">Property Through</th>
+	<th style=" border: 1px solid black;width:15%">Property Link</th>
 </tr>	
 {% for property in property_data %}
  <tr style="height:30px">
@@ -27,6 +27,7 @@
  	<td style=" border: 1px solid black;text-align:center">{{ property.get("price") }}</td>
  	<td style=" border: 1px solid black;text-align:center">{{ property.get("carpet_area") }}</td>
  	<td style=" border: 1px solid black;">{{ property.get("comments") }}</td>
+ 	<td style=" border: 1px solid black;">{{ property.get("property_through") }}</td>
  	<td style=" border: 1px solid black"><a href="http://www.propshikari.com/#/propertypersonal/{{ property.get("property_id") }}" target="_blank" style="padding-left:8px;"><button type="button" style="background-color: #E7EBEF;border-color: transparent; width:80%;">View</button>
  	</a></td>
  </tr>	

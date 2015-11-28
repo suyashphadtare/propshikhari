@@ -3,6 +3,7 @@ import frappe
 from elasticsearch import Elasticsearch
 from elasticsearch.client import IndicesClient
 from datetime import datetime
+from elasticsearch import helpers
 
 
 class ElasticSearchController():
@@ -66,7 +67,16 @@ class ElasticSearchController():
 			es_mappings = ElasticSearchController.get_index_mapper_dict()			
 			index_response = ic.create(index=self.index_name, body={ "mappings":es_mappings })
 
+	
+	def bulk_upload(self, actions_list):
 
+		""" Bulk Upload of documents in elasticsearch having operations like index, create, update, delete. """
+		
+		response = helpers.bulk(client=self.es, actions=actions_list)
+		return response
+			
+			
+	
 	@staticmethod
 	def get_index_mapper_dict():
 		from elastic_search_mappers import project_mapper, property_mapper, request_mapper

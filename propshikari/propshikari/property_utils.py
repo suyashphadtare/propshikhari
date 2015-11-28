@@ -404,8 +404,10 @@ def calculate_percent_completion(prop, mand_list):
 		for field in mand_list:
 			if prop.get(field):
 				count += 1
-		return (count / float(length_total_fields)) * 100
-
+		try:
+			return round((count / float(length_total_fields)) * 100, 0)
+		except  ArithmeticError,e:
+			raise InvalidDataError("Arithmatcic Exception while calculating percent completion.")	
 
 
 

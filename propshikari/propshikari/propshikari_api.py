@@ -563,7 +563,7 @@ def share_property(request_data):
 	if request_data:
 		request_data = json.loads(request_data)
 		email = putil.validate_for_user_id_exists(request_data.get("user_id"))
-		user_name = frappe.db.get_value("User", email, ["first_name", "last_name"],as_dict=True)
+		user_name = frappe.db.get_value("User", {"user_id":request_data.get("user_id")}, ["first_name", "last_name"],as_dict=True)
 		putil.validate_property_data(request_data, ["comments", "email_id"])		
 		try:
 			property_ids_list = {  comment.get("property_id"):comment.get("comment","")  for comment in request_data.get("comments") if comment.get("property_id")}

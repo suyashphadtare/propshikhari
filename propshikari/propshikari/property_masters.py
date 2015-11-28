@@ -64,6 +64,7 @@ def get_property_subtype_option(property_type, subtypes):
 	subtype_options = frappe.db.get_all("Property Subtype Option",
 		filters={"property_type": property_type},fields=["property_subtype_option"])
 	subtype_options = [sub_type_option.get("property_subtype_option") for sub_type_option in subtype_options]
+	subtype_options.sort()
 	option_dict = defaultdict(list)
 	for subtype in subtypes:
 		option_dict[subtype].extend(subtype_options)  
