@@ -33,7 +33,7 @@ def get_project_of_given_id(request_data):
 		es = ElasticSearchController()
 		response = es.search_document_for_given_id("project", request_data.get("project_id"), exclude_list)
 		response_data = putil.get_date_diff_from_posting([response])
-		putil.show_amenities_with_yes_status(response_data)
+		# putil.show_amenities_with_yes_status(response_data)
 		return {"operation":"Search", "message":"Project details found" if len(response) else "Project Not Found", "user_id":request_data.get("user_id"), "data":response_data[0]}
 	except elasticsearch.TransportError:
 		raise DoesNotExistError("Project Id does not exists")
@@ -174,11 +174,19 @@ def init_for_project_photo_upload(request_data, project_data):
 
 def init_for_property_posting(project_data):
 	property_data = prepare_property_posting_data(project_data)
+	es = ElasticSearchController()
+	property_list = []
 	for prop in property_data:
+		new_prop = {}
 		custom_id = "PROP-"  + cstr(int(time.time())) + '-' +  cstr(random.randint(10000,99999))
+		prop["_op_type"] = "index"
+		prop["_index"] = "propshikari" 
+		prop["_type"] = "property"
+		prop["_id"] = custom_id
 		prop["property_id"] = custom_id
-		es = ElasticSearchController()
-		response_data = es.index_document("property", prop, custom_id)	
+		new_prop.update(prop)
+		property_list.append(new_prop)
+	response_data = es.bulk_upload(property_list)
 
 
 def prepare_property_posting_data(project_data):
@@ -209,7 +217,7 @@ def prepare_property_posting_data(project_data):
 def get_property_specific_keys(project_data):
 	new_project_data = {}
 	new_project_data.update(project_data)
-	key_list = ["project_name","project_by", "project_for", "email_id", "website", "property_details", "fees_in_percent","project_tieup_by", "project_photo"]
+	key_list = ["project_name","project_by", "project_for", "email_id", "website", "property_details", "fees_in_percent","project_tieup_by", "project_photo", "overview"]
 	for key in key_list:
 		new_project_data.pop(key,None)
 	return new_project_data	

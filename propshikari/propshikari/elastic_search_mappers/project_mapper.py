@@ -269,7 +269,12 @@ project_mapper = {
        "transaction_type":{
         "type": "string",
         "store": "true"
-       }
+       },
+      "possession_status":{
+        "type": "string",
+        "index": "not_analyzed",
+        "store": "true"
+      }
     }
   }
 }
