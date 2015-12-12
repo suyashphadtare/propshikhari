@@ -204,6 +204,28 @@ def get_agent_properties(request_data):
 			raise OperationFailed("Get Agent Properties Operation Failed")
 
 
+def get_builder_projects(request_data):
+	if request_data:
+		request_data = json.loads(request_data)
+		email = putil.validate_for_user_id_exists(request_data.get("user_id"))
+		search_query =  { "query": { "match":{ "posted_by":request_data.get("user_id") } } }
+		try:
+			
+			es = ElasticSearchController()
+			size = get_count_of_project_records(es)
+			response_data, total_records  = es.search_document(["project"], search_query, request_data.get("page_number",1), size)
+
+			# response data & pagination logic
+
+			msg = "User Project Found" if len(response_data) else "User Project not found"
+			return putil.init_pagination_and_response_generatrion(request_data, response_data, msg, total_records)
+
+		except elasticsearch.ElasticsearchException,e:
+			raise ElasticSearchException(e.error)
+		except Exception,e:
+			raise OperationFailed("Get Builder Properties Operation Failed")
+
+
 
 
 
@@ -287,7 +309,7 @@ def share_property_to_agents(request_data):
 		user_name = frappe.db.get_value("User", {"user_id":request_data.get("user_id")}, ["first_name", "last_name"],as_dict=True)
 		putil.validate_property_data(request_data, ["comments", "email_id"])		
 		try:
-			property_ids_list = {  comment.get("property_id"):[comment.get("comment",""),comment.get("prop_through", "")]  for comment in request_data.get("comments") if comment.get("property_id")}
+			property_ids_list = {  comment.get("property_id"):[comment.get("comment",""),comment.get("prop_through", ""),comment.get("doc_available", "")]  for comment in request_data.get("comments") if comment.get("property_id")}
 			search_query = { "query":{ "ids":{ "values":property_ids_list.keys() } }} 
 			es = ElasticSearchController()
 			response_data, total_records = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",40))				
@@ -295,6 +317,7 @@ def share_property_to_agents(request_data):
 				for response in response_data:
 					response["comments"] = property_ids_list.get(response.get("property_id"),"")[0]
 					response["property_through"] = property_ids_list.get(response.get("property_id"),"")[1]
+					response["doc_available"] = property_ids_list.get(response.get("property_id"),"")[2]
 				args = { "title":"Property Shared by  {0}".format(email) , "property_data":response_data ,"first_name":user_name.get("first_name"), "last_name":user_name.get("last_name")}
 				send_email(request_data.get("email_id"), "Propshikari properties shared with you", "/templates/share_agents_property.html", args)
 				return { "operation":"Share", "message":"Property Shared Successfully"}
@@ -543,4 +566,11 @@ def get_percent_completion_script(mandatory_list):
   							};
   							ctx._source.percent_completion = ((count/%s)*100) as int 
   						"""%(mandatory_list, len(mandatory_list))
-			}	
+			}
+
+
+
+def get_count_of_project_records(es):
+	search_query = { "query": { "match_all":{} } }
+	response_data, total_records = es.search_document(["project"], search_query, 1)
+	return total_records	
