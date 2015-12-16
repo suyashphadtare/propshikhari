@@ -148,8 +148,10 @@ def get_flat_data():
 def update_property(data):
 	request_data = json.loads(data)
 	user_email = putil.validate_for_user_id_exists(request_data.get("fields").get("user_id"))
+	print user_email
 	try:
 		field_dict = putil.validate_property_posting_data(request_data.get("fields"), "property_json/property_update.json")
+		print field_dict
 		get_modified_datetime(field_dict, user_email)
 		update_property_photos(field_dict, request_data.get("fields"), request_data.get("property_id"))
 		field_dict["possession_status"] = "Immediate" if field_dict.get("possession") else field_dict.get("possession_date")
@@ -574,3 +576,8 @@ def get_count_of_project_records(es):
 	search_query = { "query": { "match_all":{} } }
 	response_data, total_records = es.search_document(["project"], search_query, 1)
 	return total_records	
+
+def build_property_update(data):
+	request_data = json.loads(data)
+	return update_property(json.dumps({"property_id":request_data.get("property_id"), "fields":request_data}))
+

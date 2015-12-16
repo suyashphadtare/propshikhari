@@ -250,7 +250,7 @@ def get_flat_data(data):
 
 @frappe.whitelist()
 def update_property(data):
-	return updt.update_property(data)
+	return updt.build_property_update(data)
 
 
 
