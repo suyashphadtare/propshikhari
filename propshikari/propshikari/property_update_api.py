@@ -179,6 +179,7 @@ def update_property_photos(field_dict, property_fields, custom_id):
 		field_dict["full_size_images"] = photo_dict.get("full_size")
 		field_dict["thumbnails"] = photo_dict.get("thumbnails")
 		field_dict["property_photo"] = field_dict.get("thumbnails")[0] if len(field_dict.get("thumbnails")) else ""
+		print field_dict
 
 
 
@@ -512,7 +513,7 @@ def delete_property_photo(doc, img_url):
 	response = es.update_docuemnt("property", doc.get("property_id"), update_query)
 	prop_dict = {"user_id":doc.get("user_id"), "sid":doc.get("sid"), "property_id":doc.get("property_id"), 
 					"fields":["thumbnails", "full_size_images", "property_photo"]}
-	prop_response = get_property_details(json.dumps(prop_dict))
+	prop_response =get_property_details(json.dumps(prop_dict))
 	return { 
 				"message":"Property Photo deleted successfully",
 				"full_size":','.join(prop_response.get("data").get("full_size_images", [])),
@@ -578,4 +579,69 @@ def get_count_of_project_records(es):
 def build_property_update(data):
 	request_data = json.loads(data)
 	return update_property(json.dumps({"property_id":request_data.get("property_id"), "fields":request_data}))
+
+def delete_multiple_photos(data):
+	data = json.loads(data)
+	full_size_img = [img_url.replace("thumbnail", "regular") for img_url in data.get("img_list")]
+	
+	prop_dict = {"user_id":data.get("user_id"), "sid":data.get("sid"), "property_id":data.get("property_id")}
+	
+	doc = get_property_details(json.dumps(prop_dict))
+	property_photo = get_property_photo(data.get("img_list"),doc.get("data").get("thumbnails"))
+	
+	update_query = get_script_query_for_multiple(full_size_img,data.get("img_list"),property_photo)
+	
+	if not doc.get("data").get("project_id",""):
+		map(lambda img_url:delete_photo_from_propshikari(img_url),data.get("img_list")) 
+	es = ElasticSearchController()
+	response = es.update_docuemnt("property", data.get("property_id"), update_query)
+	prop_dict = {"user_id":data.get("user_id"), "sid":data.get("sid"), "property_id":data.get("property_id"), 
+					"fields":["thumbnails", "full_size_images", "property_photo"]}
+	prop_response = get_property_details(json.dumps(prop_dict))
+	
+	return { 
+				"message":"Property Photo deleted successfully",
+				"full_size_images":prop_response.get("data").get("full_size_images", []),
+				"thumbnails":prop_response.get("data").get("thumbnails", []),
+				"property_photo":prop_response.get("data").get("property_photo", [])
+			}
+
+def get_script_query_for_multiple(full_size_img_list, img_url_list,prop_photo):
+	return {
+		"script" : """	ctx._source.full_size_images -= full; ctx._source.thumbnails -= thumbnail; 
+						ctx._source.property_photo = new_photo;""", 
+		"params" : {"full":full_size_img_list, "thumbnail":img_url_list, "new_photo":prop_photo}
+	}	
+
+
+def get_property_photo(exclude_list,thumbnails):
+	rem_photos_list = [image for image in thumbnails if image not in exclude_list]
+	return rem_photos_list[0] if len(rem_photos_list) else ""
+
+def add_photo_to_property(data):
+	request_data = json.loads(data)
+	prop_dict = {"user_id":request_data.get("user_id"), "sid":request_data.get("sid"), "property_id":request_data.get("property_id"), 
+					"fields":["thumbnails", "full_size_images", "property_photo"]}
+	field_dict = {}
+	prop_response = get_property_details(json.dumps(prop_dict))
+	if request_data.get("property_photos"):
+		photo_dict = store_property_photos_in_propshikari(request_data.get("property_photos"),request_data.get("property_id"))
+		photo_dict.get("full_size").extend(prop_response.get("data").get("full_size_images", []))
+		photo_dict.get("thumbnails").extend(prop_response.get("data").get("thumbnails", []))
+		field_dict["full_size_images"] = photo_dict.get("full_size")
+		field_dict["thumbnails"] = photo_dict.get("thumbnails")
+		field_dict["property_photo"] = field_dict.get("thumbnails")[0] if len(field_dict.get("thumbnails")) else ""
+		search_query = {"doc": field_dict }
+		es = ElasticSearchController()
+		update_response = es.update_docuemnt("property", request_data.get("property_id"), search_query)
+		prop_response = get_property_details(json.dumps(prop_dict))
+		
+		return { 
+					"message":"Property Photos Updated successfully",
+					"full_size_images":prop_response.get("data").get("full_size_images", []),
+					"thumbnails":prop_response.get("data").get("thumbnails", []),
+					"property_photo":prop_response.get("data").get("property_photo", [])
+				}
+	else:
+		raise DoesNotExistError("Images not Attached")
 

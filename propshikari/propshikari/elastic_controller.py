@@ -14,7 +14,7 @@ class ElasticSearchController():
 	"""
 	
 	index_name = frappe.get_hooks("index_name", app_name="propshikari")[0]
-	es = Elasticsearch()
+	es = Elasticsearch(["192.168.5.26"])
 
 	def __init__(self):
 		self.create_index_if_not_exists()
@@ -32,7 +32,6 @@ class ElasticSearchController():
 			Search document in given type_list for given search criteria 
 	   		with no of records to be returned.
 		"""	
-
 		response = self.es.search(index=self.index_name, doc_type=type_list, body=search_body, from_=(page_no - 1) * no_of_records, size=no_of_records, _source_exclude=exclude_list , _source_include=include_list)
 		total_records = response["hits"]["total"]
 		return [response["_source"] for response in response["hits"]["hits"]] , total_records

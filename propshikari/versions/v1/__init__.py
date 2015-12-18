@@ -252,6 +252,15 @@ def get_flat_data(data):
 def update_property(data):
 	return updt.build_property_update(data)
 
+@frappe.whitelist()
+def delete_property_photos(data):
+	return updt.delete_multiple_photos(data)
+
+@frappe.whitelist()
+def add_property_photos(data):
+	return updt.add_photo_to_property(data)
+
+
 
 
 
