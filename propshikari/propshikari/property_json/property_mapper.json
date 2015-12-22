@@ -15,6 +15,10 @@
     "is_mandatory": true,
     "field_type": "number"
   },
+  "email_id": {
+    "is_mandatory": true,
+    "field_type": "string"
+  },
   "location": {
     "is_mandatory": true,
     "field_type": "string"

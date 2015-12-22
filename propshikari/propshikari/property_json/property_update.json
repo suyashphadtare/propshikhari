@@ -3,6 +3,10 @@
     "is_mandatory": true,
     "field_type": "string"
   },
+  "email_id": {
+    "is_mandatory": true,
+    "field_type": "string"
+  },
   "property_type": {
     "is_mandatory": true,
     "field_type": "string"
