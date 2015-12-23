@@ -40,7 +40,7 @@ property_mapper = {
       "email_id": {
         "type": "string",
         "store": "true"
-      }
+      },
       "amenities": {
         "type": "nested",
         "properties": {
