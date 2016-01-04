@@ -424,9 +424,9 @@ def create_lead_address_from_user_data(user_data, lead):
 
 def create_enquiry(user_data, lead, address, property_details):
 	city_id = frappe.db.get_value("City", {"city_name":property_details.get("city")}, "name")
-	location = frappe.db.get_value("Area",{"area":property_details.get("location"), "city_name":city_id}, "name")
+	location = frappe.db.get_value("Area",{"area":property_details.get("location"), "city_name":city_id},"name")
 	enquiry_child_row = get_enquiry_child_row(property_details, location)
-	property_criteria = get_basic_property_details(property_details, location)
+	property_criteria = get_basic_property_details(property_details, location,city_id)
 	property_criteria.update({
 					"doctype":"Enquiry",
 					"lead":lead,
@@ -450,7 +450,7 @@ def update_enquiry(lead_name, property_details):
 	city_id = frappe.db.get_value("City", {"city_name":property_details.get("city")}, "name")
 	location = frappe.db.get_value("Area",{"area":property_details.get("location"), "city_name":city_id}, "name")
 	enquiry_child_row = get_enquiry_child_row(property_details, location)
-	property_criteria = get_basic_property_details(property_details, location)
+	property_criteria = get_basic_property_details(property_details, location,city_id)
 	eq = frappe.get_doc("Enquiry", {"lead":lead_name})
 	eq_child = eq.append("property_details", {})
 	eq_child.update(enquiry_child_row[0])
@@ -459,13 +459,14 @@ def update_enquiry(lead_name, property_details):
 
 
 
-def get_basic_property_details(property_details, location):
+def get_basic_property_details(property_details, location,city_id):
 	return {
 			"operation":property_details.get("operation"),
 			"property_type":property_details.get("property_type"),
 			"property_subtype":property_details.get("property_subtype"),
 			"property_subtype_option":property_details.get("property_subtype_option",""),
-			"location": location,
+			"city":city_id,
+			"location_name": property_details.get("location"),
 			"budget_minimum":0,
 			"budget_maximum": property_details.get("price"),
 			"area_minimum":0,

@@ -202,8 +202,8 @@ def prepare_flat_facilities_data(facility_data, property_type):
 def get_date_diff_from_posting(response_data):
 	for response in response_data:
 		current_date = datetime.now()
-		if response.get("posting_date"):
-			posting_date = datetime.strptime(response.get("posting_date"), "%d-%m-%Y")
+		if response.get("posted_datetime"):
+			posting_date = datetime.strptime(response.get("posted_datetime"), "%Y-%m-%d %H:%M:%S")
 			r = relativedelta.relativedelta(current_date, posting_date)
 			if r.years:
 				response["elapsed_time"] = "{0} year ago".format(r.years)
@@ -448,7 +448,7 @@ def show_amenities_with_yes_status(response_data):
 
 def get_exclude_list_for_search(request_source):
 	exclude_list = ["agent_name", "agent_no", "contact_no", "contact_person", "created_by", 
-			"modified_by", "creation_date", "modified_date", "posted_datetime", "modified_datetime"]
+			"modified_by", "creation_date", "modified_date", "modified_datetime"]
 	if request_source == "Hunterscamp":
 		exclude_list = ["created_by", "modified_by", "creation_date", "modified_date", "posted_datetime", "modified_datetime"]		
 	return exclude_list	

@@ -100,7 +100,7 @@ def search_project(request_data):
 def get_project_include_fields(request_source):
 	include_list = ["project_id", "project_name", "project_type", "project_by", "project_subtype","property_details",
 	"website", "email_id", "contact_person", "project_photo", "location","address", "state", "city", 
-	"pincode", "project_for", "amenities", "no_of_floors", "distance_from_imp_locations", "posting_date"]
+	"pincode", "project_for", "amenities", "no_of_floors", "distance_from_imp_locations", "posting_date","posted_datetime"]
 	if request_source == "Hunterscamp":
 		include_list = []
 	return include_list
@@ -217,7 +217,7 @@ def prepare_property_posting_data(project_data):
 def get_property_specific_keys(project_data):
 	new_project_data = {}
 	new_project_data.update(project_data)
-	key_list = ["project_name","project_by", "project_for", "email_id", "website", "property_details", "fees_in_percent","project_tieup_by", "project_photo", "overview"]
+	key_list = ["project_name","project_for", "email_id", "website", "property_details", "fees_in_percent","project_tieup_by", "project_photo", "overview"]
 	for key in key_list:
 		new_project_data.pop(key,None)
 	return new_project_data	

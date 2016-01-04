@@ -204,6 +204,27 @@ def get_agent_properties(request_data):
 		except Exception,e:
 			raise OperationFailed("Get Agent Properties Operation Failed")
 
+def get_builder_properties(request_data):
+	if request_data:
+		request_data = json.loads(request_data)
+		email = putil.validate_for_user_id_exists(request_data.get("user_id"))
+		search_query =  { "query": { "match":{ "project_by":request_data.get("builder") } } }
+		try:
+			
+			es = ElasticSearchController()
+			size = get_count_of_property_records(es)
+			response_data, total_records  = es.search_document(["property"], search_query, request_data.get("page_number",1), size)
+
+			# response data & pagination logic
+
+			msg = "User Property Found" if len(response_data) else "User Property not found"
+			return putil.init_pagination_and_response_generatrion(request_data, response_data, msg, total_records)
+
+		except elasticsearch.ElasticsearchException,e:
+			raise ElasticSearchException(e.error)
+		except Exception,e:
+			raise OperationFailed("Get Agent Properties Operation Failed")
+
 
 def get_builder_projects(request_data):
 	if request_data:
@@ -319,6 +340,7 @@ def share_property_to_agents(request_data):
 					response["comments"] = property_ids_list.get(response.get("property_id"),"")[0]
 					response["property_through"] = property_ids_list.get(response.get("property_id"),"")[1]
 					response["doc_available"] = property_ids_list.get(response.get("property_id"),"")[2]
+					make_shared_doc_entry(response,email,request_data.get("email_id"))
 				args = { "title":"Property Shared by  {0}".format(email) , "property_data":response_data ,"first_name":user_name.get("first_name"), "last_name":user_name.get("last_name")}
 				send_email(request_data.get("email_id"), "Propshikari properties shared with you", "/templates/share_agents_property.html", args)
 				return { "operation":"Share", "message":"Property Shared Successfully"}
@@ -331,11 +353,24 @@ def share_property_to_agents(request_data):
 		except elasticsearch.ElasticsearchException,e:
 			raise ElasticSearchException(e.error)
 		except Exception,e:
+			print frappe.get_traceback()
 			raise OperationFailed("Share Property Operation Failed")
 
 
-
-
+def make_shared_doc_entry(response,email,to_email):
+	print to_email
+	asp = frappe.new_doc("Shared Properties For Agent")
+	asp.property_title = response.get("property_title")
+	asp.property_type =  response.get("property_type")
+	asp.property_subtype = response.get("property_subtype")
+	asp.location = response.get("location")
+	asp.price = response.get("price")
+	asp.shared_by = email
+	asp.comments = response.get("comments")
+	asp.property_through = response.get("property_through")
+	asp.doc_available = response.get("doc_available")
+	asp.user = to_email[0]
+	asp.insert(ignore_permissions=True)
 
 def update_project(request_data):
 	user_email = putil.validate_for_user_id_exists(request_data.get("fields").get("user_id"))
