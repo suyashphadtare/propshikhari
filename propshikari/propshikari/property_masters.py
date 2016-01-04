@@ -369,6 +369,7 @@ def create_lead_from_userid(request_data, email, response):
 				lead.mobile_no = user_data.get("mobile_no")
 				lead.state = user_data.get("state")
 				lead.city = user_data.get("city")
+				lead.location = user_data.get("location")
 				lead.save(ignore_permissions=True)
 				lead_name = lead.name
 				address_nm = create_lead_address_from_user_data(user_data, lead_name)
