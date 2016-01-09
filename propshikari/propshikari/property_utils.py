@@ -93,6 +93,7 @@ def validate_property_posting_data(property_data,file_name):
 def validate_for_field_type(schema, field_value, field_name):
 	field_type = schema.get("field_type")
 	type_mapper = {"string":unicode, "number":(int,long,float), "integer":int, "list":list, "object":dict, "nested":list}
+	print field_type,type(field_value)
 	if not isinstance(field_value, type_mapper.get(field_type)) and field_value:
 		raise InvalidDataError("Invalid input of field {0}".format(field_name))
 	if field_type == "nested":
@@ -140,8 +141,6 @@ def generate_search_query_from_property_data(property_data):
         like property-type, property_subtype, budget, area etc.
 
 	"""
-
-	
 	property_field_dict = {"operation":"operation", "property_type":"property_type", "property_subtype":"property_subtype", "location":"location", "property_subtype_option":"property_subtype_option", "city":"city"}
 	must_clause_list = [ {"match":{ property_field : property_data.get(request_field) } } for request_field,property_field in property_field_dict.items() if property_data.get(request_field,False)]
 	must_clause_list.append({"match":{ "status": "Active" } })

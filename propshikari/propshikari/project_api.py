@@ -217,7 +217,7 @@ def prepare_property_posting_data(project_data):
 def get_property_specific_keys(project_data):
 	new_project_data = {}
 	new_project_data.update(project_data)
-	key_list = ["project_name","project_for", "email_id", "website", "property_details", "fees_in_percent","project_tieup_by", "project_photo", "overview"]
+	key_list = ["project_name","project_for","property_details", "fees_in_percent","project_tieup_by", "project_photo", "overview"]
 	for key in key_list:
 		new_project_data.pop(key,None)
 	return new_project_data	

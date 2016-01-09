@@ -144,6 +144,7 @@ def create_group_in_hunterscamp(request_data):
 		putil.validate_for_user_id_exists(request_data.get("user_id"))
 		putil.validate_property_data(request_data, ["operation", "property_type", "property_subtype"])
 		putil.init_for_location_or_city_creation(request_data)
+		request_data["property_subtype_option"] = ','.join(request_data.get("property_subtype_option")) if request_data.get("property_subtype_option") else " "
 		group_search_conditions = make_conditions_for_duplicate_group(request_data, "Group")
 		group_result = frappe.db.sql(""" select  name from `tabGroup` {0} """.format(group_search_conditions),as_dict=True)
 		if group_result:
@@ -262,6 +263,7 @@ def create_alerts(request_data):
 	putil.validate_for_user_id_exists(request_data.get("user_id"))
 	putil.validate_property_data(request_data, ["operation", "property_type", "property_subtype"])
 	putil.init_for_location_or_city_creation(request_data)
+	request_data["property_subtype_option"] = ','.join(request_data.get("property_subtype_option")) if request_data.get("property_subtype_option") else " "
 	alert_search_conditions = make_conditions_for_duplicate_group(request_data, "Alerts")
 	alert_result = frappe.db.sql(""" select  name from `tabAlerts` {0} """.format(alert_search_conditions),as_dict=True)
 	if alert_result:
@@ -303,6 +305,7 @@ def make_conditions_for_duplicate_group(response, request_type=None):
 
 	for group_field in group_field_set:
 		if response.get(group_field):
+			print group_field
 			group_search_conditions += " and {0} = '{1}' ".format(group_field , response.get(group_field))
 			request_field_set.add(group_field)
 
