@@ -93,7 +93,6 @@ def validate_property_posting_data(property_data,file_name):
 def validate_for_field_type(schema, field_value, field_name):
 	field_type = schema.get("field_type")
 	type_mapper = {"string":unicode, "number":(int,long,float), "integer":int, "list":list, "object":dict, "nested":list}
-	print field_type,type(field_value)
 	if not isinstance(field_value, type_mapper.get(field_type)) and field_value:
 		raise InvalidDataError("Invalid input of field {0}".format(field_name))
 	if field_type == "nested":
