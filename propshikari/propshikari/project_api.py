@@ -32,7 +32,7 @@ def get_project_of_given_id(request_data):
 		exclude_list = putil.get_exclude_list_for_search("Hunterscamp")
 		es = ElasticSearchController()
 		response = es.search_document_for_given_id("project", request_data.get("project_id"), exclude_list)
-		response_data = putil.get_date_diff_from_posting([response])
+		response_data = putil.get_date_diff_and_count_from_posting([response])
 		# putil.show_amenities_with_yes_status(response_data)
 		return {"operation":"Search", "message":"Project details found" if len(response) else "Project Not Found", "user_id":request_data.get("user_id"), "data":response_data[0]}
 	except elasticsearch.TransportError:
@@ -66,7 +66,7 @@ def search_project(request_data):
 			response_data, total_records = es.search_document(["project"], search_query, project_data.get("page_number",1), project_data.get("records_per_page",40), exclude_list, project_fields)
 			if not project_data.get("request_id"):	
 				request_id = store_request_in_elastic_search(project_data, search_query, "Project Search")
-			response_data = putil.get_date_diff_from_posting(response_data)
+			response_data = putil.get_date_diff_and_count_from_posting(response_data)
 			putil.show_amenities_with_yes_status(response_data)
 			# property_subtype_option = project_data.get("property_subtype_option","") 
 			# get_valid_property_subtype_option(response_data, property_subtype_option) if property_subtype_option else ""

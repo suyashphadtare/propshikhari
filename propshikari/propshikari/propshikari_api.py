@@ -147,7 +147,7 @@ def search_property(data):
 			request_id = store_request_in_elastic_search(property_data, search_query, "Property Search", adv_search_query)
 		if property_data.get("user_id") != "Guest":				
 			response_data = check_for_shortlisted_property(response_data,property_data.get("user_id"))
-		response_data = putil.get_date_diff_from_posting(response_data)
+		response_data = putil.get_date_diff_and_count_from_posting(response_data)
 		putil.convert_area_according_to_uom(response_data, property_data.get("unit_of_area", "Sq.Ft."))
 		putil.show_amenities_with_yes_status(response_data)
 		

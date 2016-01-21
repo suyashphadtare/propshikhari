@@ -198,7 +198,7 @@ def prepare_flat_facilities_data(facility_data, property_type):
 	return flat_facilities
 
 
-def get_date_diff_from_posting(response_data):
+def get_date_diff_and_count_from_posting(response_data):
 	for response in response_data:
 		current_date = datetime.now()
 		if response.get("posted_datetime"):
@@ -215,9 +215,20 @@ def get_date_diff_from_posting(response_data):
 			elif r.minutes:
 				response["elapsed_time"] = "{0} minutes ago".format(r.minutes)
 			elif r.seconds:
-				response["elapsed_time"] = "{0} seconds ago".format(r.seconds)			
+				response["elapsed_time"] = "{0} seconds ago".format(r.seconds)
+		
+		if response.get("property_id"):
+			response["visited_count"] = get_visit_count_of_property(response)			
+	
 	return response_data
 
+def get_visit_count_of_property(response):
+	"""
+		Returns Visit Count of property
+	"""
+	prop_count = frappe.db.sql("""select count(*) from 
+		`tabShow Contact Property` where property_id='{0}'""".format(response.get("property_id")),as_list=1)[0][0]
+	return prop_count
 
 def isolate_city_from_location(property_data):
 	if property_data.get("location"):
