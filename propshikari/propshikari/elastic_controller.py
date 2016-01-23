@@ -52,7 +52,7 @@ class ElasticSearchController():
 	def update_docuemnt(self, type_name, search_id, search_body):
 
 		"""  Update Document based on given id in elasticsearch """
-
+		
 		response = self.es.update(index=self.index_name, doc_type=type_name ,id=search_id, body=search_body)
 		return response
 

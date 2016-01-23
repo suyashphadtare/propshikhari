@@ -49,7 +49,7 @@ def update_tags_of_property(data):
 			response = es.search_document_for_given_id("property",request_data.get("property_id"), [], [])
 			get_tag_and_calculate_discounted_price(response, request_data)
 			get_modified_datetime(response, user_email)	
-			search_query = search_query = {"doc": response }
+			search_query = {"doc": response }
 			es = ElasticSearchController()
 			update_response = es.update_docuemnt("property", request_data.get("property_id"), search_query)
 			es = ElasticSearchController()
@@ -680,3 +680,40 @@ def add_photo_to_property(data):
 	else:
 		raise DoesNotExistError("Images not Attached")
 
+
+def get_update_tag_query(prop, tag,modified):
+
+	return {  
+		"_op_type": 'update',
+		"_index": 'propshikari',
+		"_type": 'property',
+		"_id": prop.get("property_id"),
+		"script" : """ctx._source.tag -= remove_tag;ctx._source.modified_by = user;ctx._source.modified_date = date;ctx._source.modified_datetime = datetime;""", 
+		"params" : {"remove_tag":tag ,"user":modified.get("modified_by"),"date":modified.get("modified_date"),"datetime":modified.get("modified_datetime")}
+	}
+
+def remove_tag_of_property(data):
+	request_data = json.loads(data)
+	user_email = putil.validate_for_user_id_exists(request_data.get("user_id"))
+	user_data = frappe.db.get_value("User",{"email":user_email}, "user_type", as_dict=True)
+	if user_data.get("user_type") == "System User":
+		try:
+			es = ElasticSearchController()
+			response = es.search_document_for_given_id("property",request_data.get("property_id"), [], [])
+			get_modified_datetime(response, user_email)
+			update_query = get_update_tag_query(request_data,request_data.get('tags')[0],response)
+			es = ElasticSearchController()
+			update_response = es.update_docuemnt("property", request_data.get("property_id"),update_query)
+			es = ElasticSearchController()
+			es.refresh_index()
+			return {	
+						"operation":"update", 
+						"user_id":request_data.get("user_id"), 
+						"message":"Property Tags Updated Successfully"
+					}
+		except elasticsearch.TransportError:
+			raise DoesNotExistError("Property Id does not exists")
+		except elasticsearch.ElasticsearchException,e:
+			raise ElasticSearchException(e.error)					
+	else:
+		raise MandatoryError("User {0} not allowed to update property tags.".format(user_email))
