@@ -647,7 +647,7 @@ def get_similar_properties(request_data):
 		try:
 			
 			sp_include_fields = ["property_photo", "property_id", "location", "address",
-			                      "city", "carpet_area", "price" ]
+			                      "city", "carpet_area", "price","property_title"]
 			es = ElasticSearchController()
 			response_data, total_records = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",4), [], sp_include_fields)
 			uom = "Sq.Ft." if uom not in ["Sq.Ft.", "Acres", "Hectares"] else uom
