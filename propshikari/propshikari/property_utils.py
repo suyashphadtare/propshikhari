@@ -143,7 +143,7 @@ def generate_search_query_from_property_data(property_data):
 	property_field_dict = {"operation":"operation", "property_type":"property_type", "property_subtype":"property_subtype", "location":"location", "property_subtype_option":"property_subtype_option", "city":"city"}
 	must_clause_list = [ {"match":{ property_field : property_data.get(request_field) } } for request_field,property_field in property_field_dict.items() if property_data.get(request_field,False)]
 	must_clause_list.append({"match":{ "status": "Active" } })
-	must_not_clause = {"match":{ "property_id":property_data.get("property_id")}}
+	must_not_clause = [{"match":{ "property_id":property_data.get("property_id")}}]
 	range_list = [ {"range": {range_key:{"lte":property_data.get(range_key)}} } for range_key in ["carpet_area","price"] if property_data.get(range_key,False)]
 	must_clause_list.extend(range_list)
 	search_query = { "query":{ "bool":{ "must":must_clause_list,"must_not":must_not_clause}}, "sort": [{ "posted_datetime": { "order": "desc" }}] }
