@@ -14,7 +14,6 @@ class ElasticSearchController():
 	"""
 	
 	index_name = frappe.get_hooks("index_name", app_name="propshikari")[0]
-	#es = Elasticsearch(["192.168.5.26"])
 	es = Elasticsearch()
 	
 	def __init__(self):
@@ -74,7 +73,14 @@ class ElasticSearchController():
 		
 		response = helpers.bulk(client=self.es, actions=actions_list)
 		return response
-			
+	
+
+	def get_aggregated_data(self, type_list, search_body):
+
+		""" Fire Aggregated query against given search query. """
+
+		response = self.es.search(index=self.index_name, doc_type=type_list, body=search_body, size=0)
+		return response["aggregations"]
 			
 	
 	@staticmethod

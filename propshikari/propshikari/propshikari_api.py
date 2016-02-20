@@ -567,7 +567,14 @@ def get_property_contact(request_data):
 		try:
 			es = ElasticSearchController()
 			response = es.search_document_for_given_id("property",request_data.get("property_id"),[],[])
-			new_response = { "contact_no": response.get("contact_no"), "contact_person":response.get("contact_person")}
+			mapper = {"Owner":["contact_person", "contact_no"], "Agent":["agent_name", "agent_no"], "Broker":["agent_name", "agent_no"] }
+			person_key = response.get("listed_by") if response.get("listed_by") else "Owner" 
+			person_no_key = response.get("listed_by") if response.get("listed_by") else "Owner" 
+			new_response = { 
+								"contact_person": response.get(mapper.get(person_key)[0] ), 
+								"contact_no":response.get(mapper.get(person_no_key)[1] ),
+								"listed_by":person_key  
+							}
 			create_lead_from_userid(request_data, email, response)
 			return {	
 						"operation":"Search",
@@ -578,6 +585,7 @@ def get_property_contact(request_data):
 		except elasticsearch.TransportError:
 			raise DoesNotExistError("Property Id does not exists")
 		except Exception,e:
+			print frappe.get_traceback()
 			raise e
 
 
@@ -771,7 +779,7 @@ def get_similar_properties(request_data):
 		try:
 			
 			sp_include_fields = ["property_photo", "property_id", "location", "address",
-			                      "city", "carpet_area", "price" ]
+			                      "city", "carpet_area", "price","property_title"]
 			es = ElasticSearchController()
 			response_data, total_records = es.search_document(["property"], search_query, request_data.get("page_number",1), request_data.get("records_per_page",4), [], sp_include_fields)
 			uom = "Sq.Ft." if uom not in ["Sq.Ft.", "Acres", "Hectares"] else uom
@@ -995,6 +1003,35 @@ def get_count_of_property_records(es):
 	response_data, total_records = es.search_document(["property"], search_query, 1)
 	return total_records
 
+
+
+def get_total_owner_count():
+	search_query =  get_owner_count_query()
+	es = ElasticSearchController()
+	response_data = es.get_aggregated_data(["property"], search_query)
+	return response_data.get("owner_count", {}).get("value", 0.0)
+
+
+def get_owner_count_query():
+	return  { "query": 
+					{ "bool": {
+		            		"must": [
+		               				{
+		                   			"match": {
+		                      			"listed_by": "Owner"
+		                   				}
+		               				}
+		            			]
+		        			}
+		    			},
+		    			"aggs":{
+					      "owner_count":{
+					            "cardinality" : {
+					                "field" : "posted_by"
+					            }
+					      }  
+		    		}
+			}
 
 
 

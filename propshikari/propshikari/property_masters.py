@@ -128,7 +128,7 @@ def get_amenities_subs(property_type):
 
 def get_facility_subs(property_type):
 	return frappe.db.get_all("Flat Facilities",
-		filters={"property_type": property_type},fields=["facility"])
+		filters={"property_type": property_type},fields=["facility", "icon"])
 
 
 
