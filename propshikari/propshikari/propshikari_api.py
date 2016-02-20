@@ -20,6 +20,7 @@ from elasticsearch import Elasticsearch
 from elasticsearch import helpers
 import math
 from api_handler.api_handler.exceptions import *
+from frappe import _, msgprint
 
 
 
@@ -80,7 +81,7 @@ def process_property_data_before_posting(property_data, request_data, email):
 		store image in full size & thumbnails format. 
 
 	"""
-
+	
 	custom_id = "PROP-"  + cstr(int(time.time())) + '-' +  cstr(random.randint(10000,99999))
 	property_data["property_id"] = custom_id
 	meta_dict = add_meta_fields_before_posting(request_data)
@@ -98,6 +99,10 @@ def process_property_data_before_posting(property_data, request_data, email):
 	property_data["discounted_price"] = putil.get_discounted_price(property_data) if property_data.get("discount_percentage") else 0.0
 	mandatory_list = property_mandatory_fields.get(property_data.get("property_type"))
 	property_data["percent_completion"] = putil.calculate_percent_completion(property_data, mandatory_list)
+	# added by arpit for  published_status
+	property_data["published_status"] = "Unpublished"
+	property_data["tag"] = property_photo_url_dict.get("tag",[])
+	# end of code
 	if not property_data.get("possession_date"):
 		property_data.pop("possession_date", None)
 	return custom_id	
@@ -165,6 +170,125 @@ def search_property(data):
 	except Exception,e:
 		raise e
 
+# code added by arpit
+
+def search_unpublished_property(data):
+	
+	property_data = json.loads(data)
+	
+	try:	
+		
+		# generate search query & result generation & list of fields which should be excluded.
+
+		exclude_list = putil.get_exclude_list_for_search(property_data.get("request_source", ""))
+	
+	 
+		#property_field_dict = {"operation":"operation", "property_type":"property_type", "property_subtype":"property_subtype", "location":"location", "property_subtype_option":"property_subtype_option", "city":"city"}
+		#must_clause_list = [ {"match":{ property_field : property_data.get(request_field) } } for request_field,property_field in property_field_dict.items() if property_data.get(request_field,False)]
+
+		#must_clause_list.append([{"match":{ "published_status": "Unpublished" } }, { "match": { "status": "Deactivated" }}])
+		must_clause_list= [{"match":{ "published_status": "Unpublished" } }]
+		# range_field_dict = { "carpet_area":["min_area", "max_area"], "price" :["min_budget", "max_budget"] }
+		# range_dict = {}
+		# for key,value in range_field_dict.items():
+		# 	result = get_range_query(key,value,property_data)
+		# 	if result:
+		# 		range_dict[key] = result	
+		# #msgprint(_(range_dict))	
+		# if range_dict:
+		# 	range_list = [ {"range": {range_key:range_value} } for range_key,range_value in range_dict.items() ]
+		# 	must_clause_list.extend(range_list)
+		search_query = { "query":{ "bool":{ "must":must_clause_list } }, "sort": [{ "posted_datetime": { "order": "desc" }}] }
+
+		#msgprint(_(search_query))
+
+
+
+		es = ElasticSearchController()
+		response_data, total_records = es.search_document(["property"], search_query, property_data.get("page_number",1), 
+										property_data.get("records_per_page",40), exclude_list)
+		
+		#msgprint(_(response_data))
+		##msgprint(_("############"))
+		#msgprint(_(total_records))
+		#frappe.throw(_("############"))
+		# post property-search operation
+
+		#if not property_data.get("request_id"):	
+		#	request_id = store_request_in_elastic_search(property_data, search_query, "Property Search", adv_search_query)
+		if property_data.get("user_id") != "Guest":				
+			response_data = check_for_shortlisted_property(response_data,property_data.get("user_id"))
+		response_data = putil.get_date_diff_and_count_from_posting(response_data)
+		putil.convert_area_according_to_uom(response_data, property_data.get("unit_of_area", "Sq.Ft."))
+		putil.show_amenities_with_yes_status(response_data)
+		
+		# response data & pagination logic
+
+		msg = "Property found for specfied criteria" if len(response_data) else "Property not found"
+		response_dict = putil.init_pagination_and_response_generatrion(property_data, response_data, msg, total_records)
+		#response_dict["request_id"] = property_data.get("request_id") if property_data.get("request_id") else request_id 
+		return response_dict
+
+	except elasticsearch.RequestError,e:
+		raise ElasticInvalidInputFormatError(e.error)
+	except elasticsearch.ElasticsearchException,e:
+		raise ElasticSearchException(e.error)
+	except Exception,e:
+		raise e
+
+
+def get_range_query(key,value,request_data):
+	new_dict = {}
+	if request_data.get(value[0]) and request_data.get(value[1]):
+		new_dict["gte"] = request_data.get(value[0])
+		new_dict["lte"] = request_data.get(value[1])
+	elif request_data.get(value[0]) and not request_data.get(value[1]):
+		new_dict["gte"] = request_data.get(value[0])
+	elif not request_data.get(value[0]) and request_data.get(value[1]):
+		new_dict["gte"] = 0
+		new_dict["lte"] = request_data.get(value[1])
+	#msgprint(_(new_dict))	
+	return new_dict	
+
+
+
+
+def update_unpublished_property_flag(request_data):
+	if request_data:
+		#email = putil.validate_for_user_id_exists(request_data.get("user_id"))
+		#putil.validate_property_data(request_data, ["property_id"])
+		#putil.validate_property_status(request_data.get("property_status"))	
+		try:
+			property_data = prepare_query_of_published_properties(request_data.get("property_ids"))
+			es = ElasticSearchController()
+			print property_data
+			# response = es.updatupe_docuemnt("property", request_data.get("property_id"), search_query)
+			response = es.bulk_upload(property_data)
+			return {"operation":"Update" , "message":"Unpublished property status changed" if response else "upublished Status not changed", "user_id":request_data.get("user_id")}
+		except elasticsearch.TransportError:
+			raise DoesNotExistError("Property Id does not exists")
+		except elasticsearch.ElasticsearchException,e:
+			raise e	
+		except Exception,e:
+			raise OperationFailed("Update Property Status Operation Failed")
+
+
+
+
+def prepare_query_of_published_properties(properties):
+	data = []
+	for prop in properties:
+		dict_data ={}
+		dict_data["_op_type"] ='update'
+	 	dict_data["_index"] ='propshikari'
+	 	dict_data["_type"] ='property'
+	 	dict_data["_id"] = prop
+	 	dict_data["script"] ="""ctx._source.status = prop_status; ctx._source.published_status = published_flag ; 
+	 								ctx._source.tag += tags"""
+	 	dict_data["params"] ={"prop_status":"Active","published_flag":"published","tags":["Verified"]}
+	 	data.append(dict_data)
+	return data
+# end of code
 
 
 
@@ -239,7 +363,7 @@ def store_request_in_elastic_search(property_data, search_query, request_type, a
 		"unit_of_area":property_data.get("unit_of_area"),
 		"search_query":cstr(search_query),
 		"adv_search_query":cstr(adv_search_query),
-		"request_type":request_type
+		"request_type":request_type,
 
 	}
 	meta_dict = add_meta_fields_before_posting(property_data)
@@ -264,7 +388,7 @@ def add_meta_fields_before_posting(property_data):
 
 
 def store_property_photos_in_propshikari(request_data, custom_id):
-	property_url_dict = {"full_size":[], "thumbnails":[]}
+	property_url_dict = {"full_size":[], "thumbnails":[],"tag":[]}
 	size = 400,400
 	if request_data:
 		putil.validate_for_property_photo_fields(request_data)

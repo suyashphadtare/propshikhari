@@ -333,6 +333,11 @@ property_mapper = {
         "type": "string",
         "index": "not_analyzed",
         "store": "true"
+      },
+      "published_status":{
+        "type": "string",
+        "index": "not_analyzed",
+        "store": "true"
       }
     }
   }
