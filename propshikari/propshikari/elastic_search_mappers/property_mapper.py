@@ -338,6 +338,11 @@ property_mapper = {
         "type": "string",
         "index": "not_analyzed",
         "store": "true"
+      },
+      "project_name":{
+        "type": "string",
+        "index": "not_analyzed",
+        "store": "true"
       }
     }
   }

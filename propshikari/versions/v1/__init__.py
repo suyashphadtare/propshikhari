@@ -27,10 +27,6 @@ def search_property(data):
 @frappe.whitelist(allow_guest=True)
 def search_unpublished_property(data):
 	return api.search_unpublished_property(data)
-
-@frappe.whitelist(allow_guest=True)
-def update_unpublished_property_flag(data):
-	return api.update_unpublished_property_flag(data)
 #end of code update_unpublished_property_flag
 
 @frappe.whitelist(allow_guest=True)
