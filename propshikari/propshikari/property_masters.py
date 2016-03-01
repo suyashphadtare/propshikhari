@@ -166,13 +166,14 @@ def create_group_in_hunterscamp(request_data):
 			gr_doc.unit_of_area = request_data.get("unit_of_area")
 			gr_doc.city =request_data.get("city")
 			gr_doc.status = "Active"
-			gr_doc.save()
+			gr_doc.save(ignore_permissions=True)
 			return {"operation":"Create", "group_id":gr_doc.name, "message":"Group Created"}
 		except frappe.MandatoryError,e:
 			raise MandatoryError("Mandatory Field {0} missing".format(e.message))
 		except (frappe.LinkValidationError, frappe.ValidationError)  as e:
 			raise InvalidDataError(e.message)
 		except Exception,e:
+			print e
 			return {"operation":"Create", "message":"Group not created"}
 
 
@@ -191,7 +192,7 @@ def join_user_with_group_id(request_data):
 			grusr.user_id = request_data.get("user_id")
 			grusr.group_id = request_data.get("group_id")
 			grusr.user  = email
-			grusr.save()
+			grusr.save(ignore_permissions=True)
 			return {"operation":"Search", "message":"Group joined"}
 		except frappe.MandatoryError,e:
 			raise MandatoryError("Mandatory Field {0} missing".format(e.message))
@@ -222,7 +223,7 @@ def shortlist_property(request_data):
 				sp_doc.user_id = request_data.get("user_id")
 				sp_doc.property_id = request_data.get("property_id")
 				sp_doc.status = "Active"
-				sp_doc.save()
+				sp_doc.save(ignore_permissions=True)
 				es = ElasticSearchController()
 				es.refresh_index()
 			except frappe.MandatoryError,e:
@@ -247,7 +248,7 @@ def create_feedback(request_data):
 			fdbk.user_feedback = request_data.get("feedback")
 			fdbk.user_ratings = request_data.get("ratings") 
 			fdbk.user_id = request_data.get("user_id")
-			fdbk.save()
+			fdbk.save(ignore_permissions=True)
 			return {"operation":"Create", "message":"Feedback Submitted"}
 		except frappe.MandatoryError,e:
 			raise MandatoryError("Mandatory Field {0} missing".format(e.message))
@@ -286,7 +287,7 @@ def create_alerts(request_data):
 		alrt.user_id = request_data.get("user_id")
 		alrt.city = request_data.get("city")
 		alrt.status = "Active"
-		alrt.save()
+		alrt.save(ignore_permissions=True)
 		return {"operation":"Create", "alert_id":alrt.name, "message":"Alert Created"}
 	except frappe.MandatoryError,e:
 		raise MandatoryError("Mandatory Field {0} missing".format(e.message))

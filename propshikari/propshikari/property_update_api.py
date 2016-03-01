@@ -301,7 +301,7 @@ def get_all_projects(request_data):
 		email = putil.validate_for_user_id_exists(request_data.get("user_id"))
 		search_query =  { }
 		try:
-			include_list = ["project_id", "overview"]
+			include_list = ["project_id", "project_name"]
 			es = ElasticSearchController()
 			size = get_count_of_project_records(es)
 			response_data, total_records  = es.search_document(["project"], search_query, request_data.get("page_number",1), size, [], include_list)

@@ -199,7 +199,7 @@ def prepare_property_posting_data(project_data):
 		prop_dict["property_title"] =  project_data.get("project_name")
 		prop_dict["property_type"] = prop.get("property_type")
 		prop_dict["property_subtype"] = prop.get("property_subtype")
-		prop_dict["property_subtype_option"] = prop.get("property_subtype_option")
+		prop_dict["property_subtype_option"] = prop.get("property_subtype_option", "")
 		prop_dict["operation"] = project_data.get("operation")
 		prop_dict["carpet_area"] = prop.get("max_area")
 		prop_dict["price"] = prop.get("max_price")
@@ -217,7 +217,7 @@ def prepare_property_posting_data(project_data):
 def get_property_specific_keys(project_data):
 	new_project_data = {}
 	new_project_data.update(project_data)
-	key_list = ["project_name","project_for","property_details", "fees_in_percent","project_tieup_by", "project_photo", "overview"]
+	key_list = ["project_for","property_details", "fees_in_percent","project_tieup_by", "project_photo", "overview"]
 	for key in key_list:
 		new_project_data.pop(key,None)
 	return new_project_data	
