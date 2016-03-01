@@ -578,6 +578,7 @@ def get_update_query(prop, full_size_img, img_url):
 	}
 
 
+
 def get_property_photo_add_query(prop, full_size_img, thumbnails, prop_photo):
 	return {  
 		"_op_type": 'update',

@@ -23,7 +23,11 @@ def post_property(data):
 def search_property(data):
 	return api.search_property(data)
 
-
+# added by arpit for unpublished property
+@frappe.whitelist(allow_guest=True)
+def search_unpublished_property(data):
+	return api.search_unpublished_property(data)
+#end of code update_unpublished_property_flag
 
 @frappe.whitelist(allow_guest=True)
 def register_user(data):

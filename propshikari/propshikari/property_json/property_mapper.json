@@ -222,5 +222,13 @@
    "discount_percentage":{
     "is_mandatory": false,
     "field_type": "number"
+  },
+ "published_status":{
+    "is_mandatory": false,
+    "field_type": "string"
+  },
+  "project_name":{
+    "is_mandatory": false,
+    "field_type": "string"
   }
 }
