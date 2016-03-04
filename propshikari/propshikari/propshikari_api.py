@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 import frappe
 from frappe.utils import cstr, cint, flt
 from elastic_controller import ElasticSearchController
-from frappe.utils import add_days, getdate, now, nowdate ,random_string ,add_months, date_diff
+from frappe.utils import add_days, getdate, now, nowdate ,random_string ,add_months, date_diff, get_datetime
 from property_masters import create_lead_from_userid, make_conditions_for_duplicate_group
 from percent_completion import property_mandatory_fields
 from frappe.auth import _update_password
@@ -1005,6 +1005,24 @@ def get_owner_count_query():
 					      }  
 		    		}
 			}
+
+
+def create_snapshot():
+	snapshot_repo = frappe.get_hooks("snapshot_repo", app_name="propshikari")[0]
+	snapshot_name = get_datetime().strftime("%Y%m%d_%H%M%S")
+	es = ElasticSearchController()
+	print now()
+	try:
+		response = es.create_snapshot(snapshot_repo, snapshot_name)
+		if not response.get("state") == "SUCCESS":
+			send_email(["suyash.p@indictranstech.com", "gupteshwar@indictranstech.com"], "Propshikari Elastic Backup Operation Error", "/templates/elastic_backup_notification.html", {"error_log":response})
+		return response
+	except Exception,e:
+		print "Elastic Backup Operation Failed"
+		print frappe.get_traceback()
+		print "Error Occured : ",e
+		send_email(["suyash.p@indictranstech.com", "gupteshwar@indictranstech.com"], "Propshikari Elastic Backup Operation Error", "/templates/elastic_backup_notification.html", {"error_log":frappe.get_traceback()})		
+
 
 
 
