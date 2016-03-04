@@ -88,7 +88,7 @@ class ElasticSearchController():
 		""" Create snapshot of elasticsearch in given repository. """
 
 		sc = SnapshotClient(self.es)
-		response = sc.create(repository=repo_path, snapshot=snapshot_name, wait_for_completion = True)
+		response = sc.create(repository=repo_path, snapshot=snapshot_name, wait_for_completion = True, master_timeout=600)
 		return response["snapshot"]
 			
 	
