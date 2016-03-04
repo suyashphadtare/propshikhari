@@ -1015,7 +1015,7 @@ def create_snapshot():
 	try:
 		response = es.create_snapshot(snapshot_repo, snapshot_name)
 		if not response.get("state") == "SUCCESS":
-			send_email(["suyash.p@indictranstech.com", "gupteshwar@indictranstech.com"], "Propshikari Elastic Backup Operation Error", "/templates/elastic_backup_notification.html", {"error_log":response})
+			send_email(["suyash.p@indictranstech.com"], "Propshikari Elastic Backup Operation Error", "/templates/elastic_backup_notification.html", {"error_log":response})
 		return response
 	except Exception,e:
 		print "Elastic Backup Operation Failed"

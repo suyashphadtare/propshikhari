@@ -14,7 +14,7 @@ class ElasticSearchController():
 	"""
 	
 	index_name = frappe.get_hooks("index_name", app_name="propshikari")[0]
-	es = Elasticsearch()
+	es = Elasticsearch(timeout = 120)
 	
 	def __init__(self):
 		self.create_index_if_not_exists()
