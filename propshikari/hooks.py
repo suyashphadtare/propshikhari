@@ -40,6 +40,8 @@ app_version = "0.0.1"
 
 index_name = "propshikari"
 
+snapshot_repo = "propshikari_elastic_backup"
+
 # Installation
 # ------------
 

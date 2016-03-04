@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 import frappe
 from elasticsearch import Elasticsearch
-from elasticsearch.client import IndicesClient
+from elasticsearch.client import IndicesClient, SnapshotClient
 from datetime import datetime
 from elasticsearch import helpers
 
@@ -81,6 +81,15 @@ class ElasticSearchController():
 
 		response = self.es.search(index=self.index_name, doc_type=type_list, body=search_body, size=0)
 		return response["aggregations"]
+
+
+	def create_snapshot(self, repo_path, snapshot_name):
+
+		""" Create snapshot of elasticsearch in given repository. """
+
+		sc = SnapshotClient(self.es)
+		response = sc.create(repository=repo_path, snapshot=snapshot_name, wait_for_completion = True)
+		return response["snapshot"]
 			
 	
 	@staticmethod
