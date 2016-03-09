@@ -133,7 +133,6 @@ def post_project(data):
 				init_for_property_posting(project_data)
 				response_dict["message"] = "Project Posted Successfully"
 			except Exception,e:
-				raise e
 				response_dict["message"] ="Project Posted Successfully but Property Posting Failed"
 			response_dict["project_id"] = project_id
 			return response_dict				
@@ -204,10 +203,12 @@ def prepare_property_posting_data(project_data):
 		prop_dict["carpet_area"] = prop.get("max_area")
 		prop_dict["price"] = prop.get("max_price")
 		prop_dict["unit_of_area"] = prop.get("unit_of_area")
+		prop_dict["published_status"] = "Unpublished"
 		prop_dict["property_photo"] = project_data.get("project_photo","")
 		prop_dict["flat_facilities"] = putil.prepare_flat_facilities_data([], prop.get("property_type"))
 		prop_dict.update(new_project_data)
 		mandatory_list = property_mandatory_fields.get(prop.get("property_type"))
+		prop_dict["status"] = "Deactivated"
 		prop_dict["percent_completion"] = putil.calculate_percent_completion(prop_dict, mandatory_list)
 		prop_list = [prop_dict] * cint(prop.get("count"))
 		property_data.extend(prop_list)

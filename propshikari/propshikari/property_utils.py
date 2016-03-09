@@ -242,10 +242,11 @@ def isolate_city_from_location(property_data):
 
 def init_for_location_or_city_creation(property_data):
 	if property_data.get("location"):
+		check_if_city_id_exists(property_data)
 		location_city_list = property_data.get("location").split(',')
 		condition = ",".join('"{0}"'.format(loc) for loc in location_city_list)
 		area_list = frappe.db.sql(""" select * from `tabArea` where name in ({0}) """.format(condition), as_dict=True)
-		if area_list: 
+		if area_list:
 			property_data["location"] = ",".join([ area.get("area") for area in area_list ])
 			city_ids = [area.get("city_name") for area in area_list if area.get("city_name")]
 			city_name = frappe.db.get_value("City", {"name":city_ids[0]}, "city_name")
@@ -253,8 +254,15 @@ def init_for_location_or_city_creation(property_data):
 		else:
 			city_name = frappe.db.get_value("City", {"name":property_data.get("location")}, "city_name")
 			property_data["city"] = city_name if city_name else ""
-			property_data.pop("location")
+			property_data.pop("location")		
 
+
+def check_if_city_id_exists(property_data):
+	location = property_data.get("location")
+	if "CIT" in location and "LOCT" in location:
+		city_index = location.index("CIT")
+		end_index = location.find(",", city_index)
+		property_data["location"] = location[city_index:end_index] if end_index > 0 else location[city_index:]
 
 
 def generate_advance_search_query(adv_search_query, property_data):
