@@ -222,5 +222,9 @@
    "discount_percentage":{
     "is_mandatory": false,
     "field_type": "number"
+  },
+  "project_name":{
+    "is_mandatory": false,
+    "field_type": "string"
   }
 }
