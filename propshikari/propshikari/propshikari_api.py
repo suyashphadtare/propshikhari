@@ -257,7 +257,7 @@ def prepare_query_of_published_properties(properties):
 	 	dict_data["_type"] ='property'
 	 	dict_data["_id"] = prop
 	 	dict_data["script"] ="""ctx._source.status = prop_status; ctx._source.published_status = published_flag ; 
-	 								ctx._source.tag += tags"""
+	 								if (!ctx._source.tag ) {ctx._source.tag =  [] }; ctx._source.tag += tags"""
 	 	dict_data["params"] ={"prop_status":"Active","published_flag":"published","tags":["Verified"]}
 	 	data.append(dict_data)
 	return data

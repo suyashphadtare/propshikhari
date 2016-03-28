@@ -209,6 +209,7 @@ def prepare_property_posting_data(project_data):
 		prop_dict.update(new_project_data)
 		mandatory_list = property_mandatory_fields.get(prop.get("property_type"))
 		prop_dict["status"] = "Deactivated"
+		prop_dict["tag"] = []
 		prop_dict["percent_completion"] = putil.calculate_percent_completion(prop_dict, mandatory_list)
 		prop_list = [prop_dict] * cint(prop.get("count"))
 		property_data.extend(prop_list)
