@@ -5,6 +5,7 @@ import propshikari.propshikari.property_masters as masters
 import propshikari.propshikari.project_api as projt
 import propshikari.propshikari.user_api as usr
 import propshikari.propshikari.property_update_api as updt
+import propshikari.propshikari.property_utils as prop_utils
 from frappe.utils import cstr, cint
 import frappe
 import time
@@ -263,6 +264,10 @@ def delete_property_photos(data):
 @frappe.whitelist()
 def add_property_photos(data):
 	return updt.add_photo_to_property(data)
+
+@frappe.whitelist(allow_guest=True)
+def get_propshikari_meta_data(data):
+	return prop_utils.get_propshikari_meta_data()
 
 
 

@@ -129,7 +129,7 @@
   },
   "contact_no": {
     "is_mandatory": false,
-    "field_type": "number"
+    "field_type": "string"
   },
   "contact_person": {
     "is_mandatory": false,

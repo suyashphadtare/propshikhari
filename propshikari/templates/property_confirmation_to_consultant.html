@@ -4,14 +4,20 @@
 </head>
 <body>
 <h4>{{ title }}</h4>
-<p>{{_("Dear Customer")}},</p>
-<p>{{_("Following are the properties which are shared by")}} {{ first_name }}{% if last_name %} {{ last_name}}{% endif %}.</p>
+<p>{{_("Dear {0}".format(first_name))}},</p>
+<p>{{_("Properties for the following criteria are available in Propshikari. Please search the properties for following criteria.")}}</p>
+
+{% for key, value in { "property_type":"Property Type", "property_subtype":"Property Subtype", "operation":"Operation", "location":"Location", "area_minimum":"Area Minimum", "area_maximum":"Area Maximum", "budget_minimum":"Budget Minimum", "budget_maximum":"Budget Maximum" }.items() %}
+	{% if prop_data.get(key) %}
+		<p><strong>{{ value }}:</strong>{{ prop_data[key] }}</p>
+	{% endif %}	
+{% endfor %}
+
 <br>
- 
 <br>
 <br>
 <p>{{_("Thank you")}}<br>
 {{_("Team Propshikari.com")}}<br>
-{{_("ph no-")}}</p>
+{{_("Ph No - 02065420999")}}</p>
 </body>
 </html>

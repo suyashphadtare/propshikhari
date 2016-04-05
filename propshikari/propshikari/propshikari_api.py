@@ -473,7 +473,7 @@ def get_property_of_given_id(request_data):
 		email = putil.validate_for_user_id_exists(request_data.get("user_id"))
 		try:
 			exclude_list = ["agent_name", "agent_no", "contact_no", "contact_person", "created_by", 
-							"modified_by", "creation_date", "modified_date", "posted_datetime", "modified_datetime", 
+							"modified_by", "creation_date","modified_date", "modified_datetime", 
 							"full_size_images", "thumbnails"]
 			es = ElasticSearchController()
 			response = es.search_document_for_given_id("property",request_data.get("property_id"), exclude_list)

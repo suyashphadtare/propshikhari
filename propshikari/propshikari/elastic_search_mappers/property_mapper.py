@@ -201,7 +201,8 @@ property_mapper = {
         "store": "true"
       },
       "contact_no": {
-        "type": "long",
+        "type": "string",
+        "index": "not_analyzed",
         "store": "true"
       },
       "contact_person": {

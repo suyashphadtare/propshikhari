@@ -473,3 +473,21 @@ def get_exclude_list_for_search(request_source):
 
 
 
+def get_propshikari_meta_data():
+	include_fields = ["about_propshikari", "why_us", "mission", "vision", "address", "phone_nos", "default_phone_no", "mobile_no", "email_id",
+						"advice", "loan", "legal_services", "property_management", "investment_property", "discounted_property", "terms_and_conditions", 
+						"disclaimer", "privacy_policy", "faq_heading"]
+	response = frappe.db.get_values("Singles",{"doctype":"Propshikari Information" ,"field":["in", include_fields]} , ["value","field"], as_dict=1)
+	response_dict = {prop_data["field"]:prop_data["value"]  for prop_data in response}
+	response_dict["frequesntly_asked_questions"] = frappe.db.get_values("Frequently Asked Questions",{"parent":"Propshikari Information"}, ["question", "answer"], as_dict=1)
+	response_dict["testimonials"] = get_testimonials()
+	return{ "message":"Propshikari Meta Data Found" , "data":response_dict}
+
+
+def get_testimonials():
+	testimonials = frappe.db.get_values("Testimonials", {"active_status":1}, ["full_name", "image", "testimonials"], as_dict=1)
+	for testimonial in testimonials:
+		if testimonial.get("image"):
+			host_url = str(frappe.request.host_url)
+			testimonial["image"] = host_url.rstrip("\/") + testimonial.get("image", "")
+	return testimonials	
