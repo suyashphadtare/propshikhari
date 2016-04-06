@@ -7,11 +7,15 @@
 <p>{{_("Dear {0}".format(first_name))}},</p>
 <p>{{_("Properties for the following criteria are available in Propshikari. Please search the properties for following criteria.")}}</p>
 
-{% for key, value in { "property_type":"Property Type", "property_subtype":"Property Subtype", "operation":"Operation", "location":"Location", "area_minimum":"Area Minimum", "area_maximum":"Area Maximum", "budget_minimum":"Budget Minimum", "budget_maximum":"Budget Maximum" }.items() %}
-	{% if prop_data.get(key) %}
-		<p><strong>{{ value }}:</strong>{{ prop_data[key] }}</p>
-	{% endif %}	
-{% endfor %}
+
+<p><strong>Property Type:</strong>{{ prop_data.get("property_type", "") }}</p>
+<p><strong>Property Subtype:</strong>{{ prop_data.get("property_subtype", "") }}</p>
+<p><strong>Operation:</strong>{{ prop_data.get("operation", "") }}</p>
+<p><strong>Budget Minimum:</strong>{{ prop_data.get("budget_minimum", "") }}</p>
+<p><strong>Budget Maximum:</strong>{{ prop_data.get("budget_maximum", "") }}</p>
+<p><strong>Area Minimum:</strong>{{ prop_data.get("area_minimum", "") }}</p>
+<p><strong>Area Maximum:</strong>{{ prop_data.get("area_maximum", "") }}</p>
+<p><strong>Location:</strong>{{ prop_data.get("location", "") }}</p>
 
 <br>
 <br>
